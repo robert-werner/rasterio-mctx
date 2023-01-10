@@ -450,6 +450,13 @@ cdef class GDALEnv(ConfigEnv):
     def _dump_open_datasets(self):
         GDALDumpOpenDatasets(stderr)
 
+    def _dump_vsimem(self):
+        dirs = VSIReadDir("/vsimem/")
+        num_items = CSLCount(dirs)
+        try:
+            return list([dirs[i] for i in range(num_items) if str(dirs[i])])
+        finally:
+            CSLDestroy(dirs)
 
 def set_proj_data_search_path(path):
     """Set PROJ data search path"""

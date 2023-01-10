@@ -132,6 +132,8 @@ cdef extern from "cpl_vsi.h" nogil:
     int VSIUnlink(const char *path)
     int VSIMkdir(const char *path, long mode)
     int VSIRmdir(const char *path)
+    int VSIRmdirRecursive(const char *path)
+    char** VSIReadDir(const char *path)
     int VSIFFlushL(VSILFILE *fp)
     size_t VSIFReadL(void *buffer, size_t nSize, size_t nCount, VSILFILE *fp)
     int VSIFSeekL(VSILFILE *fp, vsi_l_offset nOffset, int nWhence)
