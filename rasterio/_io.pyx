@@ -31,7 +31,7 @@ from rasterio._path import _parse_path, _UnparsedPath
 from rasterio.dtypes import is_ndarray, _is_complex_int, _getnpdtype, _gdal_typename, _get_gdal_dtype
 from rasterio.sample import sample_gen
 from rasterio.transform import Affine
-from rasterio.vrt import _boundless_vrt_doc, VirtualDataset
+from rasterio.vrt import _boundless_vrt_doc
 from rasterio.windows import Window, intersection
 
 from libc.stdio cimport FILE
@@ -637,6 +637,7 @@ cdef class DatasetReaderBase(DatasetBase):
         # If this is a boundless read we will create an in-memory VRT
         # in order to use GDAL's windowing and compositing logic.
         else:
+            from .io import MemoryFile
 
             if fill_value is not None:
                 nodataval = fill_value
@@ -652,7 +653,7 @@ cdef class DatasetReaderBase(DatasetBase):
                 transform=self.window_transform(window)
             )
 
-            with VirtualDataset.fromstring(vrt_doc) as vrt:
+            with MemoryFile(vrt_doc) as vrt:
                 with vrt.open() as dataset:
                     out = dataset._read(
                         indexes,
@@ -675,7 +676,7 @@ cdef class DatasetReaderBase(DatasetBase):
                             masked=True
                         )
 
-                        with VirtualDataset.fromstring(vrt_doc) as vrt:
+                        with MemoryFile(vrt_doc) as vrt:
                             with vrt.open() as dataset:
                                 mask = np.zeros(out.shape, 'uint8')
                                 mask = ~dataset._read(
@@ -839,6 +840,8 @@ cdef class DatasetReaderBase(DatasetBase):
         # If this is a boundless read we will create an in-memory VRT
         # in order to use GDAL's windowing and compositing logic.
         else:
+            from .io import MemoryFile
+
             enums = self.mask_flag_enums
             all_valid = all([MaskFlags.all_valid in flags for flags in enums])
 
@@ -859,7 +862,7 @@ cdef class DatasetReaderBase(DatasetBase):
                         height=max(self.height, window.height) + 1,
                         transform=self.window_transform(window)
                     )
-                    with VirtualDataset.fromstring(mask_vrt_doc) as vrt:
+                    with MemoryFile(mask_vrt_doc) as vrt:
                         with vrt.open() as dataset:
                             out = np.zeros(out.shape, 'uint8')
                             out = dataset._read(
@@ -875,7 +878,7 @@ cdef class DatasetReaderBase(DatasetBase):
                     height=max(self.height, window.height) + 1,
                     transform=self.window_transform(window)
                 )
-                with VirtualDataset.fromstring(vrt_doc) as vrt:
+                with MemoryFile(vrt_doc) as vrt:
                     with vrt.open() as dataset:
                         out = dataset._read(
                             indexes,
