@@ -49,6 +49,10 @@ log = logging.getLogger(__name__)
 gdal33_version_checked = False
 gdal33_version_met = False
 
+cpdef int unlink_vsi(vsi_path):
+
+    """Unlinks VSI (virtual filesystem) file."""
+    VSIUnlink(<bytes>vsi_path)
 
 def validate_resampling(resampling):
     """Validate that the resampling method is compatible of reads/writes."""
