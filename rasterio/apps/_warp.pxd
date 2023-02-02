@@ -1,6 +1,6 @@
 include "rasterio/gdal.pxi"
 
-cdef extern from "gdal_utils.h":
+cdef extern from "gdal_utils.h" nogil:
 
     ctypedef struct GDALWarpAppOptions
     ctypedef struct GDALWarpAppOptionsForBinary

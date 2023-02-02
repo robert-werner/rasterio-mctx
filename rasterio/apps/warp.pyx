@@ -5,7 +5,7 @@ import rasterio
 include "rasterio/gdal.pxi"
 
 from rasterio._io cimport DatasetReaderBase
-from rasterio.head_on._warp cimport GDALWarpAppOptions, GDALWarpAppOptionsFree, GDALWarp, GDALWarpAppOptionsNew
+from rasterio.apps._warp cimport GDALWarpAppOptions, GDALWarpAppOptionsFree, GDALWarp, GDALWarpAppOptionsNew
 
 
 cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
@@ -59,7 +59,8 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
     cdef char** enc_str_options_ptr = CSLParseCommandLine(enc_str_options)
 
     cdef GDALWarpAppOptions* warp_app_options = NULL
-    warp_app_options = GDALWarpAppOptionsNew(enc_str_options_ptr, NULL)
+    with nogil:
+        warp_app_options = GDALWarpAppOptionsNew(enc_str_options_ptr, NULL)
     return warp_app_options
 
 
@@ -79,7 +80,7 @@ cpdef warp(src_ds,
            dst_nodata=None,
            set_source_color_interp=None,
            resampling=None,
-           write_flush=None):
+           write_flush=False):
 
     cdef GDALDatasetH src_ds_ptr = NULL
 
@@ -117,11 +118,10 @@ cpdef warp(src_ds,
                                                                         output_format,
                                                                         overwrite,
                                                                         write_flush)
-    try:
+    with nogil:
         dst_hds = GDALWarp(dst_ds_enc, NULL, src_count, src_ds_ptr_list, warp_app_options, &pbUsageError)
         if dst_hds == NULL:
             raise RuntimeError('Destination dataset is null!')
-    finally:
         GDALClose(dst_hds)
         CPLFree(src_ds_ptr_list)
         GDALWarpAppOptionsFree(warp_app_options)

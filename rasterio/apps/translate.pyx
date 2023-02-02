@@ -3,7 +3,7 @@ import rasterio
 include "rasterio/gdal.pxi"
 
 from rasterio._io cimport DatasetReaderBase
-from rasterio.head_on._translate cimport GDALTranslate, GDALTranslateOptions, GDALTranslateOptionsNew, GDALTranslateOptionsFree
+from rasterio.apps._translate cimport GDALTranslate, GDALTranslateOptions, GDALTranslateOptionsNew, GDALTranslateOptionsFree
 
 
 cdef GDALTranslateOptions* create_translate_options(bands=None,
@@ -51,12 +51,10 @@ cpdef translate(src_ds,
     cdef GDALDatasetH dst_hds = NULL
     cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands, input_format, output_format)
     with nogil:
-        try:
-            dst_hds = GDALTranslate(dst_ds_enc, src_ds_ptr, gdal_translate_options, &pbUsageError)
-            if dst_hds == NULL:
-                raise RuntimeError('Destination dataset is null!')
-        finally:
-            GDALTranslateOptionsFree(gdal_translate_options)
-            GDALClose(dst_hds)
+        dst_hds = GDALTranslate(dst_ds_enc, src_ds_ptr, gdal_translate_options, &pbUsageError)
+        if dst_hds == NULL:
+            raise RuntimeError('Destination dataset is null!')
+        GDALClose(dst_hds)
+        GDALTranslateOptionsFree(gdal_translate_options)
     src_rio.close()
     return dst_ds

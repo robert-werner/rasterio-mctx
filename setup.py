@@ -249,9 +249,9 @@ if "clean" not in sys.argv:
         Extension(
             'rasterio._transform', ['rasterio/_transform.pyx'], **ext_options),
         Extension(
-            'rasterio.head_on.translate', ['rasterio/head_on/translate.pyx'], **ext_options),
+            'rasterio.apps.translate', ['rasterio/apps/translate.pyx'], **ext_options),
         Extension(
-            'rasterio.head_on.warp', ['rasterio/head_on/warp.pyx'], **ext_options)]
+            'rasterio.apps.warp', ['rasterio/apps/warp.pyx'], **ext_options)]
     if gdal_major_version >= 3:
         # VSI Plugins are only 3.0+
         extensions.append(
@@ -327,7 +327,7 @@ setup_args = dict(
     url="https://github.com/rasterio/rasterio",
     license="BSD",
     package_dir={"": "."},
-    packages=["rasterio", "rasterio.rio", "rasterio.head_on"],
+    packages=["rasterio", "rasterio.rio", "rasterio.apps"],
     include_package_data=True,
     ext_modules=ext_modules,
     zip_safe=False,
