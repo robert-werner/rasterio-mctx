@@ -15,8 +15,11 @@ cdef GDALTranslateOptions* create_translate_options(bands=None,
     if output_format:
         options += ['-of', str(output_format)]
     if bands:
-        for band in bands:
-            options += ['-b', str(band)]
+        if isinstance(bands, list):
+            for band in bands:
+                options += ['-b', str(band)]
+        if isinstance(bands, str) or isinstance(bands, int):
+            options += ['-b', str(bands)]
     enc_str_options = " ".join(options).encode('utf-8')
     cdef char** enc_str_options_ptr = CSLParseCommandLine(enc_str_options)
 
