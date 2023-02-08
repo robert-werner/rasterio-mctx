@@ -36,16 +36,9 @@ cpdef translate(src_ds,
 
     cdef GDALDatasetH src_ds_ptr = NULL
 
-    if isinstance(src_ds, str):
-        src_rio = rasterio.open(src_ds)
-        src_ds_ptr = (<DatasetReaderBase?> src_rio).handle()
-        if src_ds_ptr == NULL:
-            raise RuntimeError('Dataset is NULL')
-    if isinstance(src_ds, DatasetReaderBase):
-        src_rio = src_ds
-        src_ds_ptr = (<DatasetReaderBase?> src_rio).handle()
-        if src_ds_ptr == NULL:
-            raise RuntimeError('Dataset is NULL')
+    src_ds_ptr = GDALOpen(src_ds.encode('utf-8'), GA_ReadOnly)
+    if src_ds_ptr == NULL:
+        raise RuntimeError('Dataset is NULL')
     dst_ds_bytes = dst_ds.encode('utf-8')
     cdef char* dst_ds_enc = dst_ds_bytes
 
@@ -59,5 +52,4 @@ cpdef translate(src_ds,
             raise RuntimeError('Destination dataset is null!')
         GDALClose(dst_hds)
         GDALTranslateOptionsFree(gdal_translate_options)
-    src_rio.close()
     return dst_ds
