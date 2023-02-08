@@ -251,7 +251,10 @@ if "clean" not in sys.argv:
         Extension(
             'rasterio.apps.translate', ['rasterio/apps/translate.pyx'], **ext_options),
         Extension(
-            'rasterio.apps.warp', ['rasterio/apps/warp.pyx'], **ext_options)]
+            'rasterio.apps.warp', ['rasterio/apps/warp.pyx'], **ext_options),
+        Extension(
+            'rasterio.apps.vrt', ['rasterio/apps/vrt.pyx'], **ext_options
+        )]
     if gdal_major_version >= 3:
         # VSI Plugins are only 3.0+
         extensions.append(
