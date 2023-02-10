@@ -8,7 +8,8 @@ from rasterio.apps._translate cimport GDALTranslate, GDALTranslateOptions, GDALT
 
 cdef GDALTranslateOptions* create_translate_options(bands=None,
                                                     input_format=None,
-                                                    output_format=None) except NULL:
+                                                    output_format=None,
+                                                    configuration_options=None) except NULL:
     options = []
     if input_format:
         options += ['-if', str(input_format)]
@@ -20,6 +21,9 @@ cdef GDALTranslateOptions* create_translate_options(bands=None,
                 options += ['-b', str(band)]
         if isinstance(bands, str) or isinstance(bands, int):
             options += ['-b', str(bands)]
+    if configuration_options:
+        for configuration_option in configuration_options:
+            options += ['-co', configuration_option]
     enc_str_options = " ".join(options).encode('utf-8')
     cdef char** enc_str_options_ptr = CSLParseCommandLine(enc_str_options)
 
@@ -32,7 +36,8 @@ cpdef translate(src_ds,
                 dst_ds,
                 bands=None,
                 input_format=None,
-                output_format=None):
+                output_format=None,
+                configuration_options=None):
 
     cdef GDALDatasetH src_ds_ptr = NULL
 
@@ -45,7 +50,7 @@ cpdef translate(src_ds,
 
     cdef int pbUsageError = <int> 0
     cdef GDALDatasetH dst_hds = NULL
-    cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands, input_format, output_format)
+    cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands, input_format, output_format, configuration_options)
     with nogil:
         dst_hds = GDALTranslate(dst_ds_enc, src_ds_ptr, gdal_translate_options, &pbUsageError)
         if dst_hds == NULL:

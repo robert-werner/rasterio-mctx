@@ -254,6 +254,9 @@ if "clean" not in sys.argv:
             'rasterio.apps.warp', ['rasterio/apps/warp.pyx'], **ext_options),
         Extension(
             'rasterio.apps.vrt', ['rasterio/apps/vrt.pyx'], **ext_options
+        ),
+        Extension(
+            'rasterio.apps.contour', ['rasterio/apps/contour.pyx'], **ext_options
         )]
     if gdal_major_version >= 3:
         # VSI Plugins are only 3.0+

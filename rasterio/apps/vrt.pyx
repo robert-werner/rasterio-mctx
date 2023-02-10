@@ -2,7 +2,6 @@ import rasterio
 
 include "rasterio/gdal.pxi"
 
-from rasterio._io cimport DatasetReaderBase
 from rasterio.apps._vrt cimport GDALBuildVRT, GDALBuildVRTOptions, GDALBuildVRTOptionsNew, GDALBuildVRTOptionsFree
 
 RESAMPLE_ALGS = {

@@ -42,6 +42,9 @@ cdef extern from "cpl_progress.h":
 
     ctypedef int (*GDALProgressFunc)(double dfComplete, const char *pszMessage, void *pProgressArg)
 
+cdef extern from "cpl_port.h" nogil:
+
+    ctypedef char** CSLConstList
 
 cdef extern from "cpl_string.h" nogil:
 
@@ -312,6 +315,7 @@ cdef extern from "gdal.h" nogil:
         double dfMAX_LONG
         double dfMAX_LAT
 
+    OGRSpatialReferenceH GDALGetSpatialRef(GDALDatasetH)
     int GDALExtractRPCInfo(char **papszMD, GDALRPCInfo * )
     void GDALAllRegister()
     void GDALDestroyDriverManager()
@@ -449,6 +453,7 @@ cdef extern from "ogr_api.h" nogil:
     void OGRCleanupAll()
     int OGRGetDriverCount()
 
+    int OGR_FD_GetFieldIndex(OGRFeatureDefnH, const char*)
     char *OGR_Dr_GetName(OGRSFDriverH driver)
     OGRDataSourceH OGR_Dr_CreateDataSource(OGRSFDriverH driver,
                                            const char *path, char **options)
@@ -704,4 +709,96 @@ cdef extern from "gdal_alg.h" nogil:
 
 cdef extern from "ogr_core.h" nogil:
 
+    ctypedef enum OGRwkbGeometryType:
+        wkbUnknown
+        wkbPoint
+        wkbLineString
+        wkbPolygon
+        wkbMultiPoint
+        wkbMultiLineString
+        wkbMultiPolygon
+        wkbGeometryCollection
+        wkbCircularString
+        wkbCompoundCurve
+        wkbCurvePolygon
+        wkbMultiCurve
+        wkbMultiSurface
+        wkbCurve
+        wkbSurface
+        wkbPolyhedralSurface
+        wkbTIN
+        wkbTriangle
+        wkbNone
+        wkbLinearRing
+        wkbCircularStringZ
+        wkbCompoundCurveZ
+        wkbCurvePolygonZ
+        wkbMultiCurveZ
+        wkbMultiSurfaceZ
+        wkbCurveZ
+        wkbSurfaceZ
+        wkbPolyhedralSurfaceZ
+        wkbTINZ
+        wkbTriangleZ
+        wkbPointM
+        wkbLineStringM
+        wkbPolygonM
+        wkbMultiPointM
+        wkbMultiLineStringM
+        wkbMultiPolygonM
+        wkbGeometryCollectionM
+        wkbCircularStringM
+        wkbCompoundCurveM
+        wkbCurvePolygonM
+        wkbMultiCurveM
+        wkbMultiSurfaceM
+        wkbCurveM
+        wkbSurfaceM
+        wkbPolyhedralSurfaceM
+        wkbTINM
+        wkbTriangleM
+        wkbPointZM
+        wkbLineStringZM
+        wkbPolygonZM
+        wkbMultiPointZM
+        wkbMultiLineStringZM
+        wkbMultiPolygonZM
+        wkbGeometryCollectionZM
+        wkbCircularStringZM
+        wkbCompoundCurveZM
+        wkbCurvePolygonZM
+        wkbMultiCurveZM
+        wkbMultiSurfaceZM
+        wkbCurveZM
+        wkbSurfaceZM
+        wkbPolyhedralSurfaceZM
+        wkbTINZM
+        wkbTriangleZM
+        wkbPoint25D
+        wkbLineString25D
+        wkbPolygon25D
+        wkbMultiPoint25D
+        wkbMultiLineString25D
+        wkbMultiPolygon25D
+        wkbGeometryCollection25D
+
+    ctypedef enum OGRFieldType:
+        OFTInteger
+        OFTIntegerList
+        OFTReal
+        OFTRealList
+        OFTString
+        OFTStringList
+        OFTWideString
+        OFTWideStringList
+        OFTBinary
+        OFTDate
+        OFTTime
+        OFTDateTime
+        OFTInteger64
+        OFTInteger64List
+        OFTMaxType
+
+
     char *OGRGeometryTypeToName(int type)
+

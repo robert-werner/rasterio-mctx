@@ -22,7 +22,8 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
                                                  dst_nodata=None,
                                                  set_source_color_interp=None,
                                                  resampling=None,
-                                                 write_flush=None):
+                                                 write_flush=None,
+                                                 configuration_options=None):
     options = []
     if output_crs:
         options += ['-t_srs', str(output_crs)]
@@ -54,7 +55,9 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
         options += ['-setci']
     if resampling:
         options += ['-r', str(resampling)]
-
+    if configuration_options:
+        for configuration_option in configuration_options:
+            options += ['-co', configuration_option]
     enc_str_options = " ".join(options).encode('utf-8')
     cdef char** enc_str_options_ptr = CSLParseCommandLine(enc_str_options)
 
@@ -80,7 +83,8 @@ cpdef warp(src_ds,
            dst_nodata=None,
            set_source_color_interp=None,
            resampling=None,
-           write_flush=False):
+           write_flush=False,
+           configuration_options=None):
 
     cdef GDALDatasetH src_ds_ptr = NULL
 
@@ -110,7 +114,8 @@ cpdef warp(src_ds,
                                                                         input_format,
                                                                         output_format,
                                                                         overwrite,
-                                                                        write_flush)
+                                                                        write_flush,
+                                                                        configuration_options)
     with nogil:
         dst_hds = GDALWarp(dst_ds_enc, NULL, src_count, src_ds_ptr_list, warp_app_options, &pbUsageError)
         if dst_hds == NULL:
