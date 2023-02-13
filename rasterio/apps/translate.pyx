@@ -56,5 +56,6 @@ cpdef translate(src_ds,
         if dst_hds == NULL:
             raise RuntimeError('Destination dataset is null!')
         GDALClose(dst_hds)
+        GDALClose(src_ds_ptr)
         GDALTranslateOptionsFree(gdal_translate_options)
     return dst_ds

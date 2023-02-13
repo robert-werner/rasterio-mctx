@@ -23,10 +23,16 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
                                                  set_source_color_interp=None,
                                                  resampling=None,
                                                  write_flush=None,
-                                                 configuration_options=None):
+                                                 configuration_options=None,
+                                                 target_extent=None,
+                                                 target_extent_crs=None):
     options = []
+    if target_extent:
+        options += ['-te', ' '.join(list(map(str, target_extent)))]
+        if target_extent_crs:
+            options += ['-te_srs', f'"{target_extent_crs}"']
     if output_crs:
-        options += ['-t_srs', str(output_crs)]
+        options += ['-t_srs', f'"{output_crs}"']
     if input_format:
         options += ['-if', str(input_format)]
     if output_format:
@@ -84,7 +90,9 @@ cpdef warp(src_ds,
            set_source_color_interp=None,
            resampling=None,
            write_flush=False,
-           configuration_options=None):
+           configuration_options=None,
+                                                 target_extent=None,
+                                                 target_extent_crs=None):
 
     cdef GDALDatasetH src_ds_ptr = NULL
 
@@ -115,12 +123,15 @@ cpdef warp(src_ds,
                                                                         output_format,
                                                                         overwrite,
                                                                         write_flush,
-                                                                        configuration_options)
+                                                                        configuration_options,
+                                                 target_extent,
+                                                 target_extent_crs)
     with nogil:
         dst_hds = GDALWarp(dst_ds_enc, NULL, src_count, src_ds_ptr_list, warp_app_options, &pbUsageError)
         if dst_hds == NULL:
             raise RuntimeError('Destination dataset is null!')
-        GDALClose(dst_hds)
-        CPLFree(src_ds_ptr_list)
-        GDALWarpAppOptionsFree(warp_app_options)
+    GDALClose(dst_hds)
+    GDALClose(src_ds_ptr_list[0])
+    CPLFree(src_ds_ptr_list)
+    GDALWarpAppOptionsFree(warp_app_options)
     return dst_ds

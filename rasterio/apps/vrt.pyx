@@ -16,12 +16,15 @@ GDALRIOResampleAlg.GRIORA_Gauss: ['-r', 'gauss']
 }
 
 cdef GDALBuildVRTOptions* create_buildvrt_options(separate=None,
-                                                  resampleAlg=None,
+                                                  resampleAlg='near',
                                                   bandList=None,
                                                   addAlpha=None,
                                                   srcNodata=None,
-                                                  vrtNodata=None) except NULL:
+                                                  vrtNodata=None,
+                                                  resolution='highest') except NULL:
     options = []
+    if resolution:
+        options += ['-r', str(resolution)]
     if separate:
         options += ['-separate']
     if bandList:
