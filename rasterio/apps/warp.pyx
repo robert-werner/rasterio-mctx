@@ -1,10 +1,6 @@
 import os
-
-import rasterio
-
 include "rasterio/gdal.pxi"
 
-from rasterio._io cimport DatasetReaderBase
 from rasterio.apps._warp cimport GDALWarpAppOptions, GDALWarpAppOptionsFree, GDALWarp, GDALWarpAppOptionsNew
 
 
@@ -91,8 +87,8 @@ cpdef warp(src_ds,
            resampling=None,
            write_flush=False,
            configuration_options=None,
-                                                 target_extent=None,
-                                                 target_extent_crs=None):
+           target_extent=None,
+           target_extent_crs=None):
 
     cdef GDALDatasetH src_ds_ptr = NULL
 
