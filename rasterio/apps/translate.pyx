@@ -1,16 +1,28 @@
-import rasterio
-
 include "rasterio/gdal.pxi"
 
-from rasterio._io cimport DatasetReaderBase
 from rasterio.apps._translate cimport GDALTranslate, GDALTranslateOptions, GDALTranslateOptionsNew, GDALTranslateOptionsFree
 
+dtype_dict = {
+    'Byte': 'Byte'
+}
 
 cdef GDALTranslateOptions* create_translate_options(bands=None,
                                                     input_format=None,
                                                     output_format=None,
-                                                    configuration_options=None) except NULL:
+                                                    configuration_options=None,
+                                                    scale=None,
+                                                    output_dtype=None) except NULL:
     options = []
+    if output_dtype:
+        options += ['-ot', str(dtype_dict[output_dtype])]
+    if scale:
+        try:
+            iter(scale[0])
+        except:
+            options += ['-scale', str(scale[0]), str(scale[1])]
+        else:
+            for _scale in scale:
+                options += ['-scale', str(_scale[0]), str(_scale[1])]
     if input_format:
         options += ['-if', str(input_format)]
     if output_format:
@@ -37,7 +49,9 @@ cpdef translate(src_ds,
                 bands=None,
                 input_format=None,
                 output_format=None,
-                configuration_options=None):
+                configuration_options=None,
+                scale=None,
+                output_dtype=None):
 
     cdef GDALDatasetH src_ds_ptr = NULL
 
@@ -50,7 +64,10 @@ cpdef translate(src_ds,
 
     cdef int pbUsageError = <int> 0
     cdef GDALDatasetH dst_hds = NULL
-    cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands, input_format, output_format, configuration_options)
+    cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands, input_format,
+                                                                                 output_format, configuration_options,
+                                                                                 scale,
+                                                                                 output_dtype)
     with nogil:
         dst_hds = GDALTranslate(dst_ds_enc, src_ds_ptr, gdal_translate_options, &pbUsageError)
         if dst_hds == NULL:
