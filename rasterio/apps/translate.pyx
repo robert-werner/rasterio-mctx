@@ -52,6 +52,7 @@ cpdef translate(src_ds,
                 configuration_options=None,
                 scale=None,
                 output_dtype=None):
+    GDALAllRegister()
 
     cdef GDALDatasetH src_ds_ptr = NULL
 
