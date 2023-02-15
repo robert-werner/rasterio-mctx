@@ -90,6 +90,8 @@ cpdef warp(src_ds,
            target_extent=None,
            target_extent_crs=None):
 
+    OGRRegisterAll()
+
     cdef GDALDatasetH src_ds_ptr = NULL
 
     src_ds_ptr = GDALOpen(src_ds.encode('utf-8'), GA_ReadOnly)

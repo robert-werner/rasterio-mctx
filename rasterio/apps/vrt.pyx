@@ -57,6 +57,8 @@ cdef GDALBuildVRTOptions* create_buildvrt_options(separate=None,
 cpdef build_vrt(src_ds_s,
                 dst_ds,
                 separate=True):
+    GDALAllRegister()
+
     cdef GDALBuildVRTOptions* buildvrt_options = NULL
     buildvrt_options = create_buildvrt_options(separate=separate)
     cdef int src_ds_len = <int>len(src_ds_s)
