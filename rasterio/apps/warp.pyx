@@ -2,6 +2,7 @@ import os
 include "rasterio/gdal.pxi"
 
 from rasterio.apps._warp cimport GDALWarpAppOptions, GDALWarpAppOptionsFree, GDALWarp, GDALWarpAppOptionsNew
+from rasterio._err cimport exc_wrap_pointer, exc_wrap_int, exc_wrap
 
 
 cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
@@ -69,7 +70,7 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
     return warp_app_options
 
 
-cpdef warp(src_ds,
+cdef GDALDatasetH _warp(src_ds,
            dst_ds,
            output_crs=None,
            warp_memory_limit=None,
@@ -92,17 +93,15 @@ cpdef warp(src_ds,
 
     OGRRegisterAll()
 
-    cdef GDALDatasetH src_ds_ptr = NULL
-
-    src_ds_ptr = GDALOpen(src_ds.encode('utf-8'), GA_ReadOnly)
-    if src_ds_ptr == NULL:
-        raise RuntimeError('Dataset is NULL')
-    dst_ds_bytes = dst_ds.encode('utf-8')
-    cdef char* dst_ds_enc = dst_ds_bytes
+    cdef GDALDatasetH src_hds = NULL
+    src_ds_bytes = src_ds.encode('utf-8')
+    cdef char *src_ds_ptr = src_ds_bytes
+    with nogil:
+        src_hds = GDALOpen(src_ds_ptr, GA_ReadOnly)
 
     cdef GDALDatasetH *src_ds_ptr_list = NULL
     src_ds_ptr_list = <GDALDatasetH *> CPLMalloc(1 * sizeof(GDALDatasetH))
-    src_ds_ptr_list[0] = src_ds_ptr
+    src_ds_ptr_list[0] = exc_wrap_pointer(src_hds)
 
     cdef int pbUsageError = <int> 0
     cdef int src_count = <int> 1
@@ -124,12 +123,56 @@ cpdef warp(src_ds,
                                                                         configuration_options,
                                                  target_extent,
                                                  target_extent_crs)
+
+    dst_ds_bytes = dst_ds.encode('utf-8')
+    cdef char *dst_ds_ptr = dst_ds_bytes
     with nogil:
-        dst_hds = GDALWarp(dst_ds_enc, NULL, src_count, src_ds_ptr_list, warp_app_options, &pbUsageError)
-        if dst_hds == NULL:
-            raise RuntimeError('Destination dataset is null!')
-    GDALClose(dst_hds)
-    GDALClose(src_ds_ptr_list[0])
-    CPLFree(src_ds_ptr_list)
-    GDALWarpAppOptionsFree(warp_app_options)
-    return dst_ds
+        dst_hds = GDALWarp(dst_ds_ptr, NULL, src_count, src_ds_ptr_list, warp_app_options, &pbUsageError)
+    try:
+        return exc_wrap_pointer(dst_hds)
+    finally:
+        GDALClose(dst_hds)
+        GDALClose(src_ds_ptr_list[0])
+        CPLFree(src_ds_ptr_list)
+        GDALWarpAppOptionsFree(warp_app_options)
+
+def warp(src_ds,
+           dst_ds,
+           output_crs=None,
+           warp_memory_limit=None,
+           multi=None,
+           multi_threads=os.cpu_count(),
+           cutline_fn=None,
+           cutline_layer=None,
+           crop_to_cutline=None,
+           input_format=None,
+           output_format=None,
+           overwrite=None,
+           src_nodata=None,
+           dst_nodata=None,
+           set_source_color_interp=None,
+           resampling=None,
+           write_flush=False,
+           configuration_options=None,
+           target_extent=None,
+           target_extent_crs=None):
+    _warp(src_ds,
+           dst_ds,
+           output_crs,
+           warp_memory_limit,
+           multi,
+           multi_threads,
+           cutline_fn,
+           cutline_layer,
+           crop_to_cutline,
+           input_format,
+           output_format,
+           overwrite,
+           src_nodata,
+           dst_nodata,
+           set_source_color_interp,
+           resampling,
+           write_flush,
+           configuration_options,
+           target_extent,
+           target_extent_crs)

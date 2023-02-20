@@ -1,8 +1,7 @@
-import rasterio
-
 include "rasterio/gdal.pxi"
 
-from rasterio.apps._vrt cimport GDALBuildVRT, GDALBuildVRTOptions, GDALBuildVRTOptionsNew, GDALBuildVRTOptionsFree
+from rasterio._err cimport exc_wrap_pointer
+from rasterio.apps._vrt cimport GDALBuildVRT, GDALBuildVRTOptions, GDALBuildVRTOptionsNew
 
 RESAMPLE_ALGS = {
 GDALRIOResampleAlg.GRIORA_NearestNeighbour: ['-r', 'near'],
@@ -54,31 +53,40 @@ cdef GDALBuildVRTOptions* create_buildvrt_options(separate=None,
     return buildvrt_options
 
 
-cpdef build_vrt(src_ds_s,
+cdef GDALDatasetH _build_vrt(src_ds_s,
                 dst_ds,
-                separate=True):
+                separate=True) except NULL:
     GDALAllRegister()
 
     cdef GDALBuildVRTOptions* buildvrt_options = NULL
     buildvrt_options = create_buildvrt_options(separate=separate)
-    cdef int src_ds_len = <int>len(src_ds_s)
+    cdef int src_ds_len = <int> len(src_ds_s)
 
     cdef GDALDatasetH* hds_list = NULL
     hds_list = <GDALDatasetH *> CPLMalloc(
         src_ds_len * sizeof(GDALDatasetH)
     )
-
     cdef int i = 0
+    cdef char *src_ds_ptr = NULL
     while i < src_ds_len:
-        hds_list[i] = GDALOpen(src_ds_s[i].encode('utf-8'), GA_ReadOnly)
+        src_ds_bytes = src_ds_s[i].encode('utf-8')
+        src_ds_ptr = src_ds_bytes
+        hds_list[i] = exc_wrap_pointer(GDALOpen(src_ds_ptr, GA_ReadOnly))
         i += 1
 
-    dst_ds_enc = dst_ds.encode('utf-8')
-    cdef char* dst_ds_ptr = dst_ds_enc
+    dst_ds_bytes = dst_ds.encode('utf-8')
+    cdef char* dst_ds_ptr = dst_ds_bytes
 
     cdef int pbUsageError = <int> 0
 
     with nogil:
         dst_hds = GDALBuildVRT(dst_ds_ptr, src_ds_len, hds_list, NULL, buildvrt_options, &pbUsageError)
+    try:
+        return exc_wrap_pointer(dst_hds)
+    finally:
         GDALClose(dst_hds)
-    return dst_ds
+
+def build_vrt(src_ds_s,
+                dst_ds,
+                separate=True):
+    _build_vrt(src_ds_s, dst_ds, separate)

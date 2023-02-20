@@ -1,6 +1,7 @@
 include "rasterio/gdal.pxi"
 
 from rasterio.apps._translate cimport GDALTranslate, GDALTranslateOptions, GDALTranslateOptionsNew, GDALTranslateOptionsFree
+from rasterio._err cimport exc_wrap_pointer, exc_wrap_int, exc_wrap
 
 dtype_dict = {
     'Byte': 'Byte'
@@ -44,7 +45,7 @@ cdef GDALTranslateOptions* create_translate_options(bands=None,
          translate_options = GDALTranslateOptionsNew(enc_str_options_ptr, NULL)
     return translate_options
 
-cpdef translate(src_ds,
+cdef GDALDatasetH _translate(src_ds,
                 dst_ds,
                 bands=None,
                 input_format=None,
@@ -54,26 +55,44 @@ cpdef translate(src_ds,
                 output_dtype=None):
     GDALAllRegister()
 
-    cdef GDALDatasetH src_ds_ptr = NULL
+    cdef GDALDatasetH src_hds_ptr = NULL
+    src_ds_bytes = src_ds.encode('utf-8')
+    cdef char *src_ds_ptr = src_ds_bytes
+    with nogil:
+        src_hds_ptr = GDALOpen(src_ds_ptr, GA_ReadOnly)
 
-    src_ds_ptr = GDALOpen(src_ds.encode('utf-8'), GA_ReadOnly)
-    if src_ds_ptr == NULL:
-        raise RuntimeError('Dataset is NULL')
-    dst_ds_bytes = dst_ds.encode('utf-8')
-    cdef char* dst_ds_enc = dst_ds_bytes
-
-
-    cdef int pbUsageError = <int> 0
-    cdef GDALDatasetH dst_hds = NULL
+    src_hds_ptr = exc_wrap_pointer(src_hds_ptr)
     cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands, input_format,
                                                                                  output_format, configuration_options,
                                                                                  scale,
                                                                                  output_dtype)
+    dst_ds_bytes = dst_ds.encode('utf-8')
+    cdef char* dst_ds_ptr = dst_ds_bytes
+    cdef int pbUsageError = <int> 0
+    cdef GDALDatasetH dst_hds = NULL
+
     with nogil:
-        dst_hds = GDALTranslate(dst_ds_enc, src_ds_ptr, gdal_translate_options, &pbUsageError)
-        if dst_hds == NULL:
-            raise RuntimeError('Destination dataset is null!')
+        dst_hds = GDALTranslate(dst_ds_ptr, src_hds_ptr, gdal_translate_options, &pbUsageError)
+    try:
+        return exc_wrap_pointer(dst_hds)
+    finally:
         GDALClose(dst_hds)
-        GDALClose(src_ds_ptr)
+        GDALClose(src_hds_ptr)
         GDALTranslateOptionsFree(gdal_translate_options)
-    return dst_ds
+
+def translate(src_ds,
+                dst_ds,
+                bands=None,
+                input_format=None,
+                output_format=None,
+                configuration_options=None,
+                scale=None,
+                output_dtype=None):
+    _translate(src_ds,
+               dst_ds,
+               bands,
+               input_format,
+               output_format,
+               configuration_options,
+               scale,
+               output_dtype)
