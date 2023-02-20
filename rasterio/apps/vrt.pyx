@@ -66,15 +66,15 @@ cdef GDALDatasetH _build_vrt(src_ds_s,
     cdef char *src_ds_ptr = NULL
     cdef GDALDatasetH* hds_list = NULL
 
-    with nogil:
-        hds_list = <GDALDatasetH *> CPLMalloc(
-            src_ds_len * sizeof(GDALDatasetH)
-        )
-        while i < src_ds_len:
-            src_ds_bytes = src_ds_s[i].encode('utf-8')
-            src_ds_ptr = src_ds_bytes
+    hds_list = <GDALDatasetH *> CPLMalloc(
+        src_ds_len * sizeof(GDALDatasetH)
+    )
+    while i < src_ds_len:
+        src_ds_bytes = src_ds_s[i].encode('utf-8')
+        src_ds_ptr = src_ds_bytes
+        with nogil:
             hds_list[i] = GDALOpen(src_ds_ptr, GA_ReadOnly)
-            i += 1
+        i += 1
 
     dst_ds_bytes = dst_ds.encode('utf-8')
     cdef char* dst_ds_ptr = dst_ds_bytes
