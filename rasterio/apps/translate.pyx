@@ -52,7 +52,7 @@ cdef GDALDatasetH _translate(src_ds,
                 output_format=None,
                 configuration_options=None,
                 scale=None,
-                output_dtype=None):
+                output_dtype=None) except NULL:
     GDALAllRegister()
 
     cdef GDALDatasetH src_hds_ptr = NULL
@@ -61,7 +61,6 @@ cdef GDALDatasetH _translate(src_ds,
     with nogil:
         src_hds_ptr = GDALOpen(src_ds_ptr, GA_ReadOnly)
 
-    src_hds_ptr = exc_wrap_pointer(src_hds_ptr)
     cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands, input_format,
                                                                                  output_format, configuration_options,
                                                                                  scale,
@@ -74,7 +73,7 @@ cdef GDALDatasetH _translate(src_ds,
     with nogil:
         dst_hds = GDALTranslate(dst_ds_ptr, src_hds_ptr, gdal_translate_options, &pbUsageError)
     try:
-        return exc_wrap_pointer(dst_hds)
+        return dst_hds
     finally:
         GDALClose(dst_hds)
         GDALClose(src_hds_ptr)

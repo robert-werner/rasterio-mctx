@@ -62,17 +62,19 @@ cdef GDALDatasetH _build_vrt(src_ds_s,
     buildvrt_options = create_buildvrt_options(separate=separate)
     cdef int src_ds_len = <int> len(src_ds_s)
 
-    cdef GDALDatasetH* hds_list = NULL
-    hds_list = <GDALDatasetH *> CPLMalloc(
-        src_ds_len * sizeof(GDALDatasetH)
-    )
     cdef int i = 0
     cdef char *src_ds_ptr = NULL
-    while i < src_ds_len:
-        src_ds_bytes = src_ds_s[i].encode('utf-8')
-        src_ds_ptr = src_ds_bytes
-        hds_list[i] = exc_wrap_pointer(GDALOpen(src_ds_ptr, GA_ReadOnly))
-        i += 1
+    cdef GDALDatasetH* hds_list = NULL
+
+    with nogil:
+        hds_list = <GDALDatasetH *> CPLMalloc(
+            src_ds_len * sizeof(GDALDatasetH)
+        )
+        while i < src_ds_len:
+            src_ds_bytes = src_ds_s[i].encode('utf-8')
+            src_ds_ptr = src_ds_bytes
+            hds_list[i] = GDALOpen(src_ds_ptr, GA_ReadOnly)
+            i += 1
 
     dst_ds_bytes = dst_ds.encode('utf-8')
     cdef char* dst_ds_ptr = dst_ds_bytes
@@ -82,7 +84,7 @@ cdef GDALDatasetH _build_vrt(src_ds_s,
     with nogil:
         dst_hds = GDALBuildVRT(dst_ds_ptr, src_ds_len, hds_list, NULL, buildvrt_options, &pbUsageError)
     try:
-        return exc_wrap_pointer(dst_hds)
+        return dst_hds
     finally:
         GDALClose(dst_hds)
 

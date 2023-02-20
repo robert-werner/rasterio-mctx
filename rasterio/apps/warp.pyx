@@ -89,7 +89,7 @@ cdef GDALDatasetH _warp(src_ds,
            write_flush=False,
            configuration_options=None,
            target_extent=None,
-           target_extent_crs=None):
+           target_extent_crs=None) except NULL:
 
     OGRRegisterAll()
 
@@ -100,8 +100,10 @@ cdef GDALDatasetH _warp(src_ds,
         src_hds = GDALOpen(src_ds_ptr, GA_ReadOnly)
 
     cdef GDALDatasetH *src_ds_ptr_list = NULL
-    src_ds_ptr_list = <GDALDatasetH *> CPLMalloc(1 * sizeof(GDALDatasetH))
-    src_ds_ptr_list[0] = exc_wrap_pointer(src_hds)
+
+    with nogil:
+        src_ds_ptr_list = <GDALDatasetH *> CPLMalloc(1 * sizeof(GDALDatasetH))
+        src_ds_ptr_list[0] = src_hds
 
     cdef int pbUsageError = <int> 0
     cdef int src_count = <int> 1
@@ -129,7 +131,7 @@ cdef GDALDatasetH _warp(src_ds,
     with nogil:
         dst_hds = GDALWarp(dst_ds_ptr, NULL, src_count, src_ds_ptr_list, warp_app_options, &pbUsageError)
     try:
-        return exc_wrap_pointer(dst_hds)
+        return dst_hds
     finally:
         GDALClose(dst_hds)
         GDALClose(src_ds_ptr_list[0])
