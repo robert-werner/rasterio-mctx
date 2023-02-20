@@ -1,48 +1,48 @@
 include "rasterio/gdal.pxi"
 
-from rasterio._err cimport exc_wrap_pointer
 from rasterio.apps._vrt cimport GDALBuildVRT, GDALBuildVRTOptions, GDALBuildVRTOptionsNew
 
 RESAMPLE_ALGS = {
-GDALRIOResampleAlg.GRIORA_NearestNeighbour: ['-r', 'near'],
-GDALRIOResampleAlg.GRIORA_Bilinear: ['-rb'],
-GDALRIOResampleAlg.GRIORA_Cubic: ['-rc'],
-GDALRIOResampleAlg.GRIORA_CubicSpline: ['-rcs'],
-GDALRIOResampleAlg.GRIORA_Lanczos: ['-r', 'lanczos'],
-GDALRIOResampleAlg.GRIORA_Average: ['-r', 'average'],
-GDALRIOResampleAlg.GRIORA_Mode: ['-r', 'mode'],
-GDALRIOResampleAlg.GRIORA_Gauss: ['-r', 'gauss']
+'near': ['-r', 'near'],
+'bilinear': ['-rb'],
+'cubic': ['-rc'],
+'cubic_spline': ['-rcs'],
+'lanczos': ['-r', 'lanczos'],
+'average': ['-r', 'average']
 }
 
 cdef GDALBuildVRTOptions* create_buildvrt_options(separate=None,
-                                                  resampleAlg='near',
-                                                  bandList=None,
-                                                  addAlpha=None,
-                                                  srcNodata=None,
-                                                  vrtNodata=None,
+                                                  resample_algo='near',
+                                                  band_list=None,
+                                                  add_alpha=None,
+                                                  src_nodata=None,
+                                                  vrt_nodata=None,
                                                   resolution='highest') except NULL:
     options = []
     if resolution:
         options += ['-r', str(resolution)]
     if separate:
         options += ['-separate']
-    if bandList:
-        for b in bandList:
-            options += ['-b', str(b)]
-    if addAlpha:
+    if band_list:
+        if isinstance(band_list, list):
+            for band in band_list:
+                options += ['-b', str(band)]
+        if isinstance(band_list, str) or isinstance(band_list, int):
+            options += ['-b', str(band_list)]
+    if add_alpha:
         options += ['-addalpha']
-    if resampleAlg:
-        options += RESAMPLE_ALGS.get(resampleAlg, ['-r', str(resampleAlg)])
-    if srcNodata:
-        if isinstance(srcNodata, int):
-            options += ['-srcnodata', str(srcNodata)]
-        if isinstance(srcNodata, list) or isinstance(srcNodata, tuple):
-            options += ['-srcnodata', f'{" ".join([str(nodata) for nodata in srcNodata])}']
-    if vrtNodata is not None:
-        if isinstance(vrtNodata, int):
-            options += ['-vrtnodata', str(vrtNodata)]
-        if isinstance(vrtNodata, list) or isinstance(vrtNodata, tuple):
-            options += ['-vrtnodata', f'{" ".join([str(nodata) for nodata in vrtNodata])}']
+    if resample_algo:
+        options += RESAMPLE_ALGS.get(resample_algo, ['-r', str(resample_algo)])
+    if src_nodata:
+        if isinstance(src_nodata, int):
+            options += ['-srcnodata', str(src_nodata)]
+        if isinstance(src_nodata, list) or isinstance(src_nodata, tuple):
+            options += ['-srcnodata', f'{" ".join([str(nodata) for nodata in src_nodata])}']
+    if vrt_nodata is not None:
+        if isinstance(vrt_nodata, int):
+            options += ['-vrtnodata', str(vrt_nodata)]
+        if isinstance(vrt_nodata, list) or isinstance(vrt_nodata, tuple):
+            options += ['-vrtnodata', f'{" ".join([str(nodata) for nodata in vrt_nodata])}']
 
     enc_str_options = " ".join(options).encode('utf-8')
     cdef char** enc_str_options_ptr = CSLParseCommandLine(enc_str_options)
@@ -53,14 +53,16 @@ cdef GDALBuildVRTOptions* create_buildvrt_options(separate=None,
     return buildvrt_options
 
 
-cdef GDALDatasetH _build_vrt(src_ds_s,
-                dst_ds,
-                separate=True) except NULL:
+cdef GDALDatasetH _build_vrt(src_ds,
+                             dst_ds,
+                             bands=None,
+                             resample_algo='near',
+                             separate=True) except NULL:
     GDALAllRegister()
 
     cdef GDALBuildVRTOptions* buildvrt_options = NULL
-    buildvrt_options = create_buildvrt_options(separate=separate)
-    cdef int src_ds_len = <int> len(src_ds_s)
+    buildvrt_options = create_buildvrt_options(separate=separate, band_list=bands, resample_algo=resample_algo)
+    cdef int src_ds_len = <int> len(src_ds)
 
     cdef int i = 0
     cdef char *src_ds_ptr = NULL
@@ -70,7 +72,7 @@ cdef GDALDatasetH _build_vrt(src_ds_s,
         src_ds_len * sizeof(GDALDatasetH)
     )
     while i < src_ds_len:
-        src_ds_bytes = src_ds_s[i].encode('utf-8')
+        src_ds_bytes = src_ds[i].encode('utf-8')
         src_ds_ptr = src_ds_bytes
         with nogil:
             hds_list[i] = GDALOpen(src_ds_ptr, GA_ReadOnly)
@@ -88,7 +90,9 @@ cdef GDALDatasetH _build_vrt(src_ds_s,
     finally:
         GDALClose(dst_hds)
 
-def build_vrt(src_ds_s,
-                dst_ds,
-                separate=True):
-    _build_vrt(src_ds_s, dst_ds, separate)
+def build_vrt(src_ds,
+              dst_ds,
+              bands=None,
+              resample_algo='near',
+              separate=True):
+    _build_vrt(src_ds, dst_ds, bands, resample_algo, separate)

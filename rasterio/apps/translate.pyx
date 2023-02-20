@@ -1,9 +1,8 @@
 include "rasterio/gdal.pxi"
 
 from rasterio.apps._translate cimport GDALTranslate, GDALTranslateOptions, GDALTranslateOptionsNew, GDALTranslateOptionsFree
-from rasterio._err cimport exc_wrap_pointer, exc_wrap_int, exc_wrap
 
-dtype_dict = {
+DTYPES = {
     'Byte': 'Byte'
 }
 
@@ -15,7 +14,7 @@ cdef GDALTranslateOptions* create_translate_options(bands=None,
                                                     output_dtype=None) except NULL:
     options = []
     if output_dtype:
-        options += ['-ot', str(dtype_dict[output_dtype])]
+        options += ['-ot', str(DTYPES[output_dtype])]
     if scale:
         try:
             iter(scale[0])
@@ -80,13 +79,13 @@ cdef GDALDatasetH _translate(src_ds,
         GDALTranslateOptionsFree(gdal_translate_options)
 
 def translate(src_ds,
-                dst_ds,
-                bands=None,
-                input_format=None,
-                output_format=None,
-                configuration_options=None,
-                scale=None,
-                output_dtype=None):
+              dst_ds,
+              bands=None,
+              input_format=None,
+              output_format=None,
+              configuration_options=None,
+              scale=None,
+              output_dtype=None):
     _translate(src_ds,
                dst_ds,
                bands,

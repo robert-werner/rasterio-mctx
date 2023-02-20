@@ -2,8 +2,15 @@ import os
 include "rasterio/gdal.pxi"
 
 from rasterio.apps._warp cimport GDALWarpAppOptions, GDALWarpAppOptionsFree, GDALWarp, GDALWarpAppOptionsNew
-from rasterio._err cimport exc_wrap_pointer, exc_wrap_int, exc_wrap
 
+RESAMPLE_ALGS = {
+'near': ['-r', 'near'],
+'bilinear': ['-rb'],
+'cubic': ['-rc'],
+'cubic_spline': ['-rcs'],
+'lanczos': ['-r', 'lanczos'],
+'average': ['-r', 'average']
+}
 
 cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
                                                  warp_memory_limit=None,
@@ -18,12 +25,15 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
                                                  src_nodata=None,
                                                  dst_nodata=None,
                                                  set_source_color_interp=None,
-                                                 resampling=None,
+                                                 resample_algo=None,
                                                  write_flush=None,
                                                  configuration_options=None,
                                                  target_extent=None,
-                                                 target_extent_crs=None):
+                                                 target_extent_crs=None,
+                                                 overview_level='NONE'):
     options = []
+    if overview_level:
+        options += ['-ovr', str(overview_level)]
     if target_extent:
         options += ['-te', ' '.join(list(map(str, target_extent)))]
         if target_extent_crs:
@@ -56,8 +66,8 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
         options += ['-dstnodata', str(dst_nodata)]
     if set_source_color_interp:
         options += ['-setci']
-    if resampling:
-        options += ['-r', str(resampling)]
+    if resample_algo:
+        options += RESAMPLE_ALGS.get(resample_algo, ['-r', str(resample_algo)])
     if configuration_options:
         for configuration_option in configuration_options:
             options += ['-co', configuration_option]
@@ -71,25 +81,26 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
 
 
 cdef GDALDatasetH _warp(src_ds,
-           dst_ds,
-           output_crs=None,
-           warp_memory_limit=None,
-           multi=None,
-           multi_threads=os.cpu_count(),
-           cutline_fn=None,
-           cutline_layer=None,
-           crop_to_cutline=None,
-           input_format=None,
-           output_format=None,
-           overwrite=None,
-           src_nodata=None,
-           dst_nodata=None,
-           set_source_color_interp=None,
-           resampling=None,
-           write_flush=False,
-           configuration_options=None,
-           target_extent=None,
-           target_extent_crs=None) except NULL:
+                        dst_ds,
+                        output_crs=None,
+                        warp_memory_limit=None,
+                        multi=None,
+                        multi_threads=os.cpu_count(),
+                        cutline_fn=None,
+                        cutline_layer=None,
+                        crop_to_cutline=None,
+                        input_format=None,
+                        output_format=None,
+                        overwrite=None,
+                        src_nodata=None,
+                        dst_nodata=None,
+                        set_source_color_interp=None,
+                        resample_algo=None,
+                        write_flush=False,
+                        configuration_options=None,
+                        target_extent=None,
+                        target_extent_crs=None,
+                        overview_level='NONE') except NULL:
 
     OGRRegisterAll()
 
@@ -110,21 +121,21 @@ cdef GDALDatasetH _warp(src_ds,
 
     cdef GDALDatasetH dst_hds = NULL
     cdef GDALWarpAppOptions *warp_app_options = NULL
-    warp_app_options = create_warp_app_options(
-                                                                        output_crs,
-                                                                        warp_memory_limit,
-                                                                        multi,
-                                                                        multi_threads,
-                                                                        cutline_fn,
-                                                                        cutline_layer,
-                                                                        crop_to_cutline,
-                                                                        input_format,
-                                                                        output_format,
-                                                                        overwrite,
-                                                                        write_flush,
-                                                                        configuration_options,
-                                                 target_extent,
-                                                 target_extent_crs)
+    warp_app_options = create_warp_app_options(output_crs,
+                                               warp_memory_limit,
+                                               multi,
+                                               multi_threads,
+                                               cutline_fn,
+                                               cutline_layer,
+                                               crop_to_cutline,
+                                               input_format,
+                                               output_format,
+                                               overwrite,
+                                               write_flush,
+                                               configuration_options,
+                                               target_extent,
+                                               target_extent_crs,
+                                               overview_level)
 
     dst_ds_bytes = dst_ds.encode('utf-8')
     cdef char *dst_ds_ptr = dst_ds_bytes
@@ -139,42 +150,44 @@ cdef GDALDatasetH _warp(src_ds,
         GDALWarpAppOptionsFree(warp_app_options)
 
 def warp(src_ds,
-           dst_ds,
-           output_crs=None,
-           warp_memory_limit=None,
-           multi=None,
-           multi_threads=os.cpu_count(),
-           cutline_fn=None,
-           cutline_layer=None,
-           crop_to_cutline=None,
-           input_format=None,
-           output_format=None,
-           overwrite=None,
-           src_nodata=None,
-           dst_nodata=None,
-           set_source_color_interp=None,
-           resampling=None,
-           write_flush=False,
-           configuration_options=None,
-           target_extent=None,
-           target_extent_crs=None):
+         dst_ds,
+         output_crs=None,
+         warp_memory_limit=None,
+         multi=None,
+         multi_threads=os.cpu_count(),
+         cutline_fn=None,
+         cutline_layer=None,
+         crop_to_cutline=None,
+         input_format=None,
+         output_format=None,
+         overwrite=None,
+         src_nodata=None,
+         dst_nodata=None,
+         set_source_color_interp=None,
+         resample_algo=None,
+         write_flush=False,
+         configuration_options=None,
+         target_extent=None,
+         target_extent_crs=None,
+         overview_level='NONE'):
     _warp(src_ds,
-           dst_ds,
-           output_crs,
-           warp_memory_limit,
-           multi,
-           multi_threads,
-           cutline_fn,
-           cutline_layer,
-           crop_to_cutline,
-           input_format,
-           output_format,
-           overwrite,
-           src_nodata,
-           dst_nodata,
-           set_source_color_interp,
-           resampling,
-           write_flush,
-           configuration_options,
-           target_extent,
-           target_extent_crs)
+          dst_ds,
+          output_crs,
+          warp_memory_limit,
+          multi,
+          multi_threads,
+          cutline_fn,
+          cutline_layer,
+          crop_to_cutline,
+          input_format,
+          output_format,
+          overwrite,
+          src_nodata,
+          dst_nodata,
+          set_source_color_interp,
+          resample_algo,
+          write_flush,
+          configuration_options,
+          target_extent,
+          target_extent_crs,
+          overview_level)
