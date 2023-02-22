@@ -6,23 +6,30 @@ DTYPES = {
     'Byte': 'Byte'
 }
 
+RESAMPLE_ALGS = {
+'near': ['-r', 'near'],
+'bilinear': ['-r', 'bilinear'],
+'cubic': ['-r', 'cubic'],
+'cubic_spline': ['-r', 'cubic_spline'],
+'lanczos': ['-r', 'lanczos'],
+'average': ['-r', 'average']
+}
+
 cdef GDALTranslateOptions* create_translate_options(bands=None,
                                                     input_format=None,
                                                     output_format=None,
+                                                    resample_algo='bilinear',
                                                     configuration_options=None,
                                                     scale=None,
                                                     output_dtype=None) except NULL:
     options = []
+    if resample_algo:
+        options += RESAMPLE_ALGS.get(resample_algo, ['-r', str(resample_algo)])
     if output_dtype:
         options += ['-ot', str(DTYPES[output_dtype])]
     if scale:
-        try:
-            iter(scale[0])
-        except:
-            options += ['-scale', str(scale[0]), str(scale[1])]
-        else:
-            for _scale in scale:
-                options += ['-scale', str(_scale[0]), str(_scale[1])]
+        for _scale in scale:
+            options += ['-scale', str(_scale[0]), str(_scale[1])]
     if input_format:
         options += ['-if', str(input_format)]
     if output_format:
@@ -49,6 +56,7 @@ cdef GDALDatasetH _translate(src_ds,
                 bands=None,
                 input_format=None,
                 output_format=None,
+                resample_algo='bilinear',
                 configuration_options=None,
                 scale=None,
                 output_dtype=None) except NULL:
@@ -60,10 +68,13 @@ cdef GDALDatasetH _translate(src_ds,
     with nogil:
         src_hds_ptr = GDALOpen(src_ds_ptr, GA_ReadOnly)
 
-    cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands, input_format,
-                                                                                 output_format, configuration_options,
-                                                                                 scale,
-                                                                                 output_dtype)
+    cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands=bands,
+                                                                                 input_format=input_format,
+                                                                                 output_format=output_format,
+                                                                                 resample_algo=resample_algo,
+                                                                                 configuration_options=configuration_options,
+                                                                                 scale=scale,
+                                                                                 output_dtype=output_dtype)
     dst_ds_bytes = dst_ds.encode('utf-8')
     cdef char* dst_ds_ptr = dst_ds_bytes
     cdef int pbUsageError = <int> 0
@@ -85,6 +96,7 @@ def translate(src_ds,
               bands=None,
               input_format=None,
               output_format=None,
+              resample_algo='bilinear',
               configuration_options=None,
               scale=None,
               output_dtype=None):
@@ -93,6 +105,7 @@ def translate(src_ds,
                bands,
                input_format,
                output_format,
+               resample_algo,
                configuration_options,
                scale,
                output_dtype)

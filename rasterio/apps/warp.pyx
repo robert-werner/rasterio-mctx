@@ -3,11 +3,12 @@ include "rasterio/gdal.pxi"
 
 from rasterio.apps._warp cimport GDALWarpAppOptions, GDALWarpAppOptionsFree, GDALWarp, GDALWarpAppOptionsNew
 
+
 RESAMPLE_ALGS = {
 'near': ['-r', 'near'],
-'bilinear': ['-rb'],
-'cubic': ['-rc'],
-'cubic_spline': ['-rcs'],
+'bilinear': ['-r', 'bilinear'],
+'cubic': ['-r', 'cubic'],
+'cubic_spline': ['-r', 'cubic_spline'],
 'lanczos': ['-r', 'lanczos'],
 'average': ['-r', 'average']
 }
@@ -121,21 +122,25 @@ cdef GDALDatasetH _warp(src_ds,
 
     cdef GDALDatasetH dst_hds = NULL
     cdef GDALWarpAppOptions *warp_app_options = NULL
-    warp_app_options = create_warp_app_options(output_crs,
-                                               warp_memory_limit,
-                                               multi,
-                                               multi_threads,
-                                               cutline_fn,
-                                               cutline_layer,
-                                               crop_to_cutline,
-                                               input_format,
-                                               output_format,
-                                               overwrite,
-                                               write_flush,
-                                               configuration_options,
-                                               target_extent,
-                                               target_extent_crs,
-                                               overview_level)
+    warp_app_options = create_warp_app_options(output_crs=output_crs,
+                                               warp_memory_limit=warp_memory_limit,
+                                               multi=multi,
+                                               multi_threads=multi_threads,
+                                               cutline_fn=cutline_fn,
+                                               cutline_layer=cutline_layer,
+                                               crop_to_cutline=crop_to_cutline,
+                                               input_format=input_format,
+                                               output_format=output_format,
+                                               overwrite=overwrite,
+                                               write_flush=write_flush,
+                                               configuration_options=configuration_options,
+                                               target_extent=target_extent,
+                                               target_extent_crs=target_extent_crs,
+                                               overview_level=overview_level,
+                                               src_nodata=src_nodata,
+                                               dst_nodata=dst_nodata,
+                                               set_source_color_interp=set_source_color_interp,
+                                               resample_algo=resample_algo)
 
     dst_ds_bytes = dst_ds.encode('utf-8')
     cdef char *dst_ds_ptr = dst_ds_bytes
@@ -165,7 +170,7 @@ def warp(src_ds,
          src_nodata=None,
          dst_nodata=None,
          set_source_color_interp=None,
-         resample_algo=None,
+         resample_algo='bilinear',
          write_flush=False,
          configuration_options=None,
          target_extent=None,

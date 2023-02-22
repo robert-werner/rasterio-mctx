@@ -4,21 +4,24 @@ from rasterio.apps._vrt cimport GDALBuildVRT, GDALBuildVRTOptions, GDALBuildVRTO
 
 RESAMPLE_ALGS = {
 'near': ['-r', 'near'],
-'bilinear': ['-rb'],
-'cubic': ['-rc'],
-'cubic_spline': ['-rcs'],
+'bilinear': ['-r', 'bilinear'],
+'cubic': ['-r', 'cubic'],
+'cubic_spline': ['-r', 'cubic_spline'],
 'lanczos': ['-r', 'lanczos'],
 'average': ['-r', 'average']
 }
 
 cdef GDALBuildVRTOptions* create_buildvrt_options(separate=None,
-                                                  resample_algo='near',
+                                                  resample_algo='bilinear',
                                                   band_list=None,
                                                   add_alpha=None,
                                                   src_nodata=None,
                                                   vrt_nodata=None,
-                                                  resolution='highest') except NULL:
+                                                  resolution='highest',
+                                                  allow_projection_difference=True) except NULL:
     options = []
+    if allow_projection_difference:
+        options += ['-allow_projection_difference']
     if resolution:
         options += ['-r', str(resolution)]
     if separate:
@@ -56,12 +59,24 @@ cdef GDALBuildVRTOptions* create_buildvrt_options(separate=None,
 cdef GDALDatasetH _build_vrt(src_ds,
                              dst_ds,
                              bands=None,
-                             resample_algo='near',
-                             separate=True) except NULL:
+                             resample_algo='bilinear',
+                             separate=True,
+                             allow_projection_difference=True,
+                             add_alpha=None,
+                             src_nodata=None,
+                             vrt_nodata=None,
+                             resolution='highest') except NULL:
     GDALAllRegister()
 
     cdef GDALBuildVRTOptions* buildvrt_options = NULL
-    buildvrt_options = create_buildvrt_options(separate=separate, band_list=bands, resample_algo=resample_algo)
+    buildvrt_options = create_buildvrt_options(separate=separate,
+                                               band_list=bands,
+                                               resample_algo=resample_algo,
+                                               allow_projection_difference=allow_projection_difference,
+                                               add_alpha=add_alpha,
+                                               src_nodata=src_nodata,
+                                               vrt_nodata=vrt_nodata,
+                                               resolution=resolution)
     cdef int src_ds_len = <int> len(src_ds)
 
     cdef int i = 0
@@ -93,6 +108,7 @@ cdef GDALDatasetH _build_vrt(src_ds,
 def build_vrt(src_ds,
               dst_ds,
               bands=None,
-              resample_algo='near',
-              separate=True):
+              resample_algo='bilinear',
+              separate=True,
+              allow_projection_difference=True):
     _build_vrt(src_ds, dst_ds, bands, resample_algo, separate)
