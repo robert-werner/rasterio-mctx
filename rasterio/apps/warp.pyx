@@ -102,7 +102,7 @@ cdef GDALDatasetH _warp(src_ds,
                         target_extent_crs=None,
                         overview_level='NONE') except NULL:
 
-    OGRRegisterAll()
+    GDALAllRegister()
 
     cdef GDALDatasetH src_hds = NULL
     src_ds_bytes = src_ds.encode('utf-8')
@@ -148,6 +148,7 @@ cdef GDALDatasetH _warp(src_ds,
         GDALClose(src_ds_ptr_list[0])
         CPLFree(src_ds_ptr_list)
         GDALWarpAppOptionsFree(warp_app_options)
+        GDALDestroyDriverManager()
 
 def warp(src_ds,
          dst_ds,

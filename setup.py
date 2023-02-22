@@ -257,7 +257,11 @@ if "clean" not in sys.argv:
         ),
         Extension(
             'rasterio.apps.contour', ['rasterio/apps/contour.pyx'], **ext_options
-        )]
+        ),
+        Extension('rasterio.apps.nogil.translate', ['rasterio/apps/nogil/translate.pyx'], **ext_options),
+        Extension('rasterio.apps.nogil.warp', ['rasterio/apps/nogil/warp.pyx'], **ext_options)
+
+    ]
     if gdal_major_version >= 3:
         # VSI Plugins are only 3.0+
         extensions.append(

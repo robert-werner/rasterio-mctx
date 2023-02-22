@@ -77,6 +77,8 @@ cdef GDALDatasetH _translate(src_ds,
         GDALClose(dst_hds)
         GDALClose(src_hds_ptr)
         GDALTranslateOptionsFree(gdal_translate_options)
+        GDALDestroyDriverManager()
+
 
 def translate(src_ds,
               dst_ds,
