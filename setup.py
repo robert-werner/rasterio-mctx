@@ -190,6 +190,7 @@ try:
 except Exception:
     pass
 
+
 # GDAL 2.3 and newer requires C++11
 if (gdal_major_version, gdal_minor_version) >= (2, 3):
     cpp11_flag = '-std=c++11'
@@ -220,6 +221,10 @@ if os.environ.get('CYTHON_COVERAGE'):
         [('CYTHON_TRACE', '1'), ('CYTHON_TRACE_NOGIL', '1')])
 
 log.debug('ext_options:\n%s', pprint.pformat(ext_options))
+
+fopenmp_ext_options = copy.deepcopy(ext_options)
+fopenmp_ext_options['extra_link_args'].append('-fopenmp')
+fopenmp_ext_options['extra_compile_args'].append('-fopenmp')
 
 ext_modules = None
 if "clean" not in sys.argv:
@@ -258,8 +263,9 @@ if "clean" not in sys.argv:
         Extension(
             'rasterio.apps.contour', ['rasterio/apps/contour.pyx'], **ext_options
         ),
-        Extension('rasterio.apps.nogil.translate', ['rasterio/apps/nogil/translate.pyx'], **ext_options),
-        Extension('rasterio.apps.nogil.warp', ['rasterio/apps/nogil/warp.pyx'], **ext_options)
+        Extension(
+            'rasterio.cutils.min_max', ['rasterio/cutils/min_max.pyx'], **ext_options
+        )
 
     ]
     if gdal_major_version >= 3:

@@ -1,12 +1,13 @@
 include "rasterio/gdal.pxi"
 
+from rasterio._err cimport exc_wrap_pointer
 from rasterio.apps._translate cimport GDALTranslate, GDALTranslateOptions, GDALTranslateOptionsNew, GDALTranslateOptionsFree
 
 DTYPES = {
     'Byte': 'Byte'
 }
 
-RESAMPLE_ALGS = {
+RESAMPLE_ALGORITHMS = {
 'near': ['-r', 'near'],
 'bilinear': ['-r', 'bilinear'],
 'cubic': ['-r', 'cubic'],
@@ -15,97 +16,71 @@ RESAMPLE_ALGS = {
 'average': ['-r', 'average']
 }
 
-cdef GDALTranslateOptions* create_translate_options(bands=None,
+cdef GDALTranslateOptions* create_translate_options(bands_list=None,
                                                     input_format=None,
                                                     output_format=None,
-                                                    resample_algo='bilinear',
+                                                    resample_algorithm='bilinear',
                                                     configuration_options=None,
-                                                    scale=None,
-                                                    output_dtype=None) except NULL:
-    options = []
-    if resample_algo:
-        options += RESAMPLE_ALGS.get(resample_algo, ['-r', str(resample_algo)])
+                                                    min_max_list=None,
+                                                    output_dtype=None):
+    translate_options_list = []
+    if resample_algorithm:
+        translate_options_list += RESAMPLE_ALGORITHMS.get(resample_algorithm, ['-r', str(resample_algorithm)])
     if output_dtype:
-        options += ['-ot', str(DTYPES[output_dtype])]
-    if scale:
-        for _scale in scale:
-            options += ['-scale', str(_scale[0]), str(_scale[1])]
+        translate_options_list += ['-ot', str(DTYPES[output_dtype])]
+    if min_max_list:
+        for _scale in min_max_list:
+            translate_options_list += ['-scale', str(_scale[0]), str(_scale[1])]
     if input_format:
-        options += ['-if', str(input_format)]
+        translate_options_list += ['-if', str(input_format)]
     if output_format:
-        options += ['-of', str(output_format)]
-    if bands:
-        if isinstance(bands, list):
-            for band in bands:
-                options += ['-b', str(band)]
-        if isinstance(bands, str) or isinstance(bands, int):
-            options += ['-b', str(bands)]
+        translate_options_list += ['-of', str(output_format)]
+    if bands_list:
+        if isinstance(bands_list, list):
+            for band in bands_list:
+                translate_options_list += ['-b', str(band)]
+        if isinstance(bands_list, str) or isinstance(bands_list, int):
+            translate_options_list += ['-b', str(bands_list)]
     if configuration_options:
         for configuration_option in configuration_options:
-            options += ['-co', configuration_option]
-    enc_str_options = " ".join(options).encode('utf-8')
-    cdef char** enc_str_options_ptr = CSLParseCommandLine(enc_str_options)
+            translate_options_list += ['-co', configuration_option]
+    str_joined_options = " ".join(translate_options_list).encode('utf-8')
+    cdef char** enc_str_options_ptr = CSLParseCommandLine(str_joined_options)
 
     cdef GDALTranslateOptions* translate_options = NULL
-    with nogil:
-         translate_options = GDALTranslateOptionsNew(enc_str_options_ptr, NULL)
+    translate_options = GDALTranslateOptionsNew(enc_str_options_ptr, NULL)
     return translate_options
 
-cdef GDALDatasetH _translate(src_ds,
-                dst_ds,
-                bands=None,
-                input_format=None,
-                output_format=None,
-                resample_algo='bilinear',
-                configuration_options=None,
-                scale=None,
-                output_dtype=None) except NULL:
+cpdef translate(source_filename,
+                             dest_filename,
+                             bands_list=None,
+                             input_format=None,
+                             output_format=None,
+                             resample_algorithm='bilinear',
+                             configuration_options=None,
+                             min_max_list=None,
+                             output_dtype=None):
     GDALAllRegister()
 
-    cdef GDALDatasetH src_hds_ptr = NULL
-    src_ds_bytes = src_ds.encode('utf-8')
-    cdef char *src_ds_ptr = src_ds_bytes
-    with nogil:
-        src_hds_ptr = GDALOpen(src_ds_ptr, GA_ReadOnly)
+    cdef GDALDatasetH source_dataset = exc_wrap_pointer(GDALOpen(source_filename.encode('utf-8'), GA_ReadOnly))
 
-    cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands=bands,
+    cdef GDALTranslateOptions* gdal_translate_options = create_translate_options(bands_list=bands_list,
                                                                                  input_format=input_format,
                                                                                  output_format=output_format,
-                                                                                 resample_algo=resample_algo,
+                                                                                 resample_algorithm=resample_algorithm,
                                                                                  configuration_options=configuration_options,
-                                                                                 scale=scale,
+                                                                                 min_max_list=min_max_list,
                                                                                  output_dtype=output_dtype)
-    dst_ds_bytes = dst_ds.encode('utf-8')
-    cdef char* dst_ds_ptr = dst_ds_bytes
-    cdef int pbUsageError = <int> 0
-    cdef GDALDatasetH dst_hds = NULL
 
-    with nogil:
-        dst_hds = GDALTranslate(dst_ds_ptr, src_hds_ptr, gdal_translate_options, &pbUsageError)
+    cdef int pbUsageError = <int> 0
+
+    dest_dataset = GDALTranslate(dest_filename.encode('utf-8'), source_dataset, gdal_translate_options, &pbUsageError)
     try:
-        return dst_hds
+        exc_wrap_pointer(dest_dataset)
     finally:
-        GDALClose(dst_hds)
-        GDALClose(src_hds_ptr)
+        GDALClose(dest_dataset)
+        GDALClose(source_dataset)
         GDALTranslateOptionsFree(gdal_translate_options)
         GDALDestroyDriverManager()
 
-
-def translate(src_ds,
-              dst_ds,
-              bands=None,
-              input_format=None,
-              output_format=None,
-              resample_algo='bilinear',
-              configuration_options=None,
-              scale=None,
-              output_dtype=None):
-    _translate(src_ds,
-               dst_ds,
-               bands,
-               input_format,
-               output_format,
-               resample_algo,
-               configuration_options,
-               scale,
-               output_dtype)
+        return dest_filename

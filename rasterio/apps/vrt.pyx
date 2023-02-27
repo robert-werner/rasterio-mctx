@@ -1,8 +1,14 @@
+import multiprocessing
+import os
+
+from rasterio._err cimport exc_wrap_pointer
+from concurrent import futures
+
 include "rasterio/gdal.pxi"
 
-from rasterio.apps._vrt cimport GDALBuildVRT, GDALBuildVRTOptions, GDALBuildVRTOptionsNew
+from rasterio.apps._vrt cimport GDALBuildVRT, GDALBuildVRTOptions, GDALBuildVRTOptionsNew, GDALBuildVRTOptionsFree
 
-RESAMPLE_ALGS = {
+RESAMPLE_ALGORITHMS = {
 'near': ['-r', 'near'],
 'bilinear': ['-r', 'bilinear'],
 'cubic': ['-r', 'cubic'],
@@ -11,104 +17,94 @@ RESAMPLE_ALGS = {
 'average': ['-r', 'average']
 }
 
-cdef GDALBuildVRTOptions* create_buildvrt_options(separate=None,
-                                                  resample_algo='bilinear',
-                                                  band_list=None,
-                                                  add_alpha=None,
-                                                  src_nodata=None,
-                                                  vrt_nodata=None,
-                                                  resolution='highest',
-                                                  allow_projection_difference=True) except NULL:
-    options = []
+cdef GDALBuildVRTOptions* create_build_vrt_options(files_as_bands=None,
+                                                   resample_algorithm='bilinear',
+                                                   bands_list=None,
+                                                   add_alpha_channel=None,
+                                                   source_nodata=None,
+                                                   dest_nodata=None,
+                                                   vrt_resolution='highest',
+                                                   allow_projection_difference=True) except NULL:
+    vrt_options_list = []
     if allow_projection_difference:
-        options += ['-allow_projection_difference']
-    if resolution:
-        options += ['-r', str(resolution)]
-    if separate:
-        options += ['-separate']
-    if band_list:
-        if isinstance(band_list, list):
-            for band in band_list:
-                options += ['-b', str(band)]
-        if isinstance(band_list, str) or isinstance(band_list, int):
-            options += ['-b', str(band_list)]
-    if add_alpha:
-        options += ['-addalpha']
-    if resample_algo:
-        options += RESAMPLE_ALGS.get(resample_algo, ['-r', str(resample_algo)])
-    if src_nodata:
-        if isinstance(src_nodata, int):
-            options += ['-srcnodata', str(src_nodata)]
-        if isinstance(src_nodata, list) or isinstance(src_nodata, tuple):
-            options += ['-srcnodata', f'{" ".join([str(nodata) for nodata in src_nodata])}']
-    if vrt_nodata is not None:
-        if isinstance(vrt_nodata, int):
-            options += ['-vrtnodata', str(vrt_nodata)]
-        if isinstance(vrt_nodata, list) or isinstance(vrt_nodata, tuple):
-            options += ['-vrtnodata', f'{" ".join([str(nodata) for nodata in vrt_nodata])}']
+        vrt_options_list += ['-allow_projection_difference']
+    if vrt_resolution:
+        vrt_options_list += ['-r', str(vrt_resolution)]
+    if files_as_bands:
+        vrt_options_list += ['-separate']
+    if bands_list:
+        if isinstance(bands_list, list):
+            for band in bands_list:
+                vrt_options_list += ['-b', str(band)]
+        if isinstance(bands_list, str) or isinstance(bands_list, int):
+            vrt_options_list += ['-b', str(bands_list)]
+    if add_alpha_channel:
+        vrt_options_list += ['-addalpha']
+    if resample_algorithm:
+        vrt_options_list += RESAMPLE_ALGORITHMS.get(resample_algorithm, ['-r', str(resample_algorithm)])
+    if source_nodata:
+        if isinstance(source_nodata, int):
+            vrt_options_list += ['-srcnodata', str(source_nodata)]
+        if isinstance(source_nodata, list) or isinstance(source_nodata, tuple):
+            vrt_options_list += ['-srcnodata', f'{" ".join([str(nodata) for nodata in source_nodata])}']
+    if dest_nodata is not None:
+        if isinstance(dest_nodata, int):
+            vrt_options_list += ['-vrtnodata', str(dest_nodata)]
+        if isinstance(dest_nodata, list) or isinstance(dest_nodata, tuple):
+            vrt_options_list += ['-vrtnodata', f'{" ".join([str(nodata) for nodata in dest_nodata])}']
 
-    enc_str_options = " ".join(options).encode('utf-8')
-    cdef char** enc_str_options_ptr = CSLParseCommandLine(enc_str_options)
+    str_joined_options = " ".join(vrt_options_list)
+    cdef char** c_vrt_options_list = CSLParseCommandLine(str_joined_options)
 
-    cdef GDALBuildVRTOptions* buildvrt_options = NULL
-    with nogil:
-        buildvrt_options = GDALBuildVRTOptionsNew(enc_str_options_ptr, NULL)
-    return buildvrt_options
+    cdef GDALBuildVRTOptions* build_vrt_options = NULL
+    build_vrt_options = GDALBuildVRTOptionsNew(c_vrt_options_list, NULL)
+    return build_vrt_options
 
-
-cdef GDALDatasetH _build_vrt(src_ds,
-                             dst_ds,
-                             bands=None,
-                             resample_algo='bilinear',
-                             separate=True,
-                             allow_projection_difference=True,
-                             add_alpha=None,
-                             src_nodata=None,
-                             vrt_nodata=None,
-                             resolution='highest') except NULL:
+cpdef build_vrt(source_filenames,
+                dest_filename,
+                bands_list=None,
+                resample_algorithm='bilinear',
+                files_as_bands=True,
+                allow_projection_difference=True,
+                add_alpha_channel=None,
+                source_nodata=None,
+                dest_nodata=None,
+                vrt_resolution='highest'):
     GDALAllRegister()
 
-    cdef GDALBuildVRTOptions* buildvrt_options = NULL
-    buildvrt_options = create_buildvrt_options(separate=separate,
-                                               band_list=bands,
-                                               resample_algo=resample_algo,
-                                               allow_projection_difference=allow_projection_difference,
-                                               add_alpha=add_alpha,
-                                               src_nodata=src_nodata,
-                                               vrt_nodata=vrt_nodata,
-                                               resolution=resolution)
-    cdef int src_ds_len = <int> len(src_ds)
+    cdef GDALBuildVRTOptions* build_vrt_options = NULL
+    build_vrt_options = create_build_vrt_options(files_as_bands=files_as_bands,
+                                                 bands_list=bands_list,
+                                                 resample_algorithm=resample_algorithm,
+                                                 allow_projection_difference=allow_projection_difference,
+                                                 add_alpha_channel=add_alpha_channel,
+                                                 source_nodata=source_nodata,
+                                                 dest_nodata=dest_nodata,
+                                                 vrt_resolution=vrt_resolution)
 
-    cdef int i = 0
-    cdef char *src_ds_ptr = NULL
-    cdef GDALDatasetH* hds_list = NULL
+    cdef int source_filenames_list_idx = 0
+    cdef char *c_source_filename = NULL
+    cdef GDALDatasetH* source_datasets = NULL
 
-    hds_list = <GDALDatasetH *> CPLMalloc(
-        src_ds_len * sizeof(GDALDatasetH)
+    source_datasets = <GDALDatasetH *> CPLMalloc(
+        <int> len(source_filenames) * sizeof(GDALDatasetH)
     )
-    while i < src_ds_len:
-        src_ds_bytes = src_ds[i].encode('utf-8')
-        src_ds_ptr = src_ds_bytes
-        with nogil:
-            hds_list[i] = GDALOpen(src_ds_ptr, GA_ReadOnly)
-        i += 1
 
-    dst_ds_bytes = dst_ds.encode('utf-8')
-    cdef char* dst_ds_ptr = dst_ds_bytes
+    for source_filename_idx in range(len(source_filenames)):
+        source_datasets[<int>source_filename_idx] = exc_wrap_pointer(GDALOpen(source_filenames[source_filename_idx], GA_ReadOnly))
 
-    cdef int pbUsageError = <int> 0
+    cdef int progressbar_usage_error
 
-    with nogil:
-        dst_hds = GDALBuildVRT(dst_ds_ptr, src_ds_len, hds_list, NULL, buildvrt_options, &pbUsageError)
+    dest_dataset = GDALBuildVRT(dest_filename, len(source_filenames), source_datasets, NULL, build_vrt_options, &progressbar_usage_error)
+
     try:
-        return dst_hds
+        exc_wrap_pointer(dest_dataset)
     finally:
-        GDALClose(dst_hds)
+        for source_filename_idx in range(len(source_filenames)):
+            GDALClose(source_datasets[<int> source_filename_idx])
+        GDALBuildVRTOptionsFree(build_vrt_options)
+        GDALClose(dest_dataset)
 
-def build_vrt(src_ds,
-              dst_ds,
-              bands=None,
-              resample_algo='bilinear',
-              separate=True,
-              allow_projection_difference=True):
-    _build_vrt(src_ds, dst_ds, bands, resample_algo, separate)
+        GDALDestroyDriverManager()
+        return dest_filename
+

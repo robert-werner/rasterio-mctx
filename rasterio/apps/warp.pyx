@@ -1,10 +1,11 @@
 import os
 include "rasterio/gdal.pxi"
 
+from rasterio._err cimport exc_wrap_pointer
 from rasterio.apps._warp cimport GDALWarpAppOptions, GDALWarpAppOptionsFree, GDALWarp, GDALWarpAppOptionsNew
 
 
-RESAMPLE_ALGS = {
+RESAMPLE_ALGORITHMS = {
 'near': ['-r', 'near'],
 'bilinear': ['-r', 'bilinear'],
 'cubic': ['-r', 'cubic'],
@@ -15,185 +16,126 @@ RESAMPLE_ALGS = {
 
 cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
                                                  warp_memory_limit=None,
-                                                 multi=None,
+                                                 multi_mode=False,
                                                  multi_threads=os.cpu_count(),
-                                                 cutline_fn=None,
+                                                 cutline_filename=None,
                                                  cutline_layer=None,
                                                  crop_to_cutline=None,
                                                  input_format=None,
                                                  output_format=None,
                                                  overwrite=None,
-                                                 src_nodata=None,
-                                                 dst_nodata=None,
+                                                 source_nodata=None,
+                                                 output_nodata=None,
                                                  set_source_color_interp=None,
-                                                 resample_algo=None,
-                                                 write_flush=None,
+                                                 resample_algorithm='bilinear',
+                                                 flush_to_disk=None,
                                                  configuration_options=None,
-                                                 target_extent=None,
+                                                 target_extent_bbox=None,
                                                  target_extent_crs=None,
                                                  overview_level='NONE'):
-    options = []
+    warp_app_options_list = []
     if overview_level:
-        options += ['-ovr', str(overview_level)]
-    if target_extent:
-        options += ['-te', ' '.join(list(map(str, target_extent)))]
+        warp_app_options_list += ['-ovr', str(overview_level)]
+    if target_extent_bbox:
+        warp_app_options_list += ['-te', ' '.join(list(map(str, target_extent_bbox)))]
         if target_extent_crs:
-            options += ['-te_srs', f'"{target_extent_crs}"']
+            warp_app_options_list += ['-te_srs', f'"{target_extent_crs}"']
     if output_crs:
-        options += ['-t_srs', f'"{output_crs}"']
+        warp_app_options_list += ['-t_srs', f'"{output_crs}"']
     if input_format:
-        options += ['-if', str(input_format)]
+        warp_app_options_list += ['-if', str(input_format)]
     if output_format:
-        options += ['-of', str(output_format)]
+        warp_app_options_list += ['-of', str(output_format)]
     if warp_memory_limit:
-        options += ['-wm', str(warp_memory_limit)]
-    if write_flush:
-        options += ['-wo', 'WRITE_FLUSH=YES']
-    if multi:
-        options += ['-multi']
+        warp_app_options_list += ['-wm', str(warp_memory_limit)]
+    if flush_to_disk:
+        warp_app_options_list += ['-wo', 'WRITE_FLUSH=YES']
+    if multi_mode:
+        warp_app_options_list += ['-multi']
         if multi_threads:
-            options += ['-wo', f'NUM_THREADS={multi_threads}']
-    if cutline_fn:
-        options += ['-cutline', str(cutline_fn)]
+            warp_app_options_list += ['-wo', f'NUM_THREADS={multi_threads}']
+    if cutline_filename:
+        warp_app_options_list += ['-cutline', str(cutline_filename)]
         if crop_to_cutline:
-            options += ['-crop_to_cutline']
+            warp_app_options_list += ['-crop_to_cutline']
         if cutline_layer:
-            options += ['-cl', str(cutline_layer)]
+            warp_app_options_list += ['-cl', str(cutline_layer)]
     if overwrite:
-        options += ['-overwrite']
-    if src_nodata:
-        options += ['-srcnodata', str(src_nodata)]
-    if dst_nodata:
-        options += ['-dstnodata', str(dst_nodata)]
+        warp_app_options_list += ['-overwrite']
+    if source_nodata:
+        warp_app_options_list += ['-srcnodata', str(source_nodata)]
+    if output_nodata:
+        warp_app_options_list += ['-dstnodata', str(output_nodata)]
     if set_source_color_interp:
-        options += ['-setci']
-    if resample_algo:
-        options += RESAMPLE_ALGS.get(resample_algo, ['-r', str(resample_algo)])
+        warp_app_options_list += ['-setci']
+    if resample_algorithm:
+        warp_app_options_list += RESAMPLE_ALGORITHMS.get(resample_algorithm, ['-r', str(resample_algorithm)])
     if configuration_options:
         for configuration_option in configuration_options:
-            options += ['-co', configuration_option]
-    enc_str_options = " ".join(options).encode('utf-8')
-    cdef char** enc_str_options_ptr = CSLParseCommandLine(enc_str_options)
+            warp_app_options_list += ['-co', configuration_option]
+    str_joined_options = " ".join(warp_app_options_list).encode('utf-8')
+    cdef char** c_vrt_options_list = CSLParseCommandLine(str_joined_options)
 
     cdef GDALWarpAppOptions* warp_app_options = NULL
-    with nogil:
-        warp_app_options = GDALWarpAppOptionsNew(enc_str_options_ptr, NULL)
+    warp_app_options = GDALWarpAppOptionsNew(c_vrt_options_list, NULL)
     return warp_app_options
 
 
-cdef GDALDatasetH _warp(src_ds,
-                        dst_ds,
+cpdef warp(source_filename,
+                        dest_filename,
                         output_crs=None,
                         warp_memory_limit=None,
-                        multi=None,
+                        multi_mode=None,
                         multi_threads=os.cpu_count(),
-                        cutline_fn=None,
+                        cutline_filename=None,
                         cutline_layer=None,
                         crop_to_cutline=None,
                         input_format=None,
                         output_format=None,
                         overwrite=None,
-                        src_nodata=None,
-                        dst_nodata=None,
+                        source_nodata=None,
+                        dest_nodata=None,
                         set_source_color_interp=None,
-                        resample_algo=None,
-                        write_flush=False,
+                        resample_algorithm='bilinear',
+                        flush_to_disk=False,
                         configuration_options=None,
-                        target_extent=None,
+                        target_extent_bbox=None,
                         target_extent_crs=None,
-                        overview_level='NONE') except NULL:
+                        overview_level='NONE'):
 
     GDALAllRegister()
 
-    cdef GDALDatasetH src_hds = NULL
-    src_ds_bytes = src_ds.encode('utf-8')
-    cdef char *src_ds_ptr = src_ds_bytes
-    with nogil:
-        src_hds = GDALOpen(src_ds_ptr, GA_ReadOnly)
+    cdef GDALDatasetH source_dataset = exc_wrap_pointer(GDALOpen(source_filename.encode('utf-8'), GA_ReadOnly))
 
-    cdef GDALDatasetH *src_ds_ptr_list = NULL
+    cdef int progressbar_usage_error = <int> 0
 
-    with nogil:
-        src_ds_ptr_list = <GDALDatasetH *> CPLMalloc(1 * sizeof(GDALDatasetH))
-        src_ds_ptr_list[0] = src_hds
-
-    cdef int pbUsageError = <int> 0
-    cdef int src_count = <int> 1
-
-    cdef GDALDatasetH dst_hds = NULL
-    cdef GDALWarpAppOptions *warp_app_options = NULL
-    warp_app_options = create_warp_app_options(output_crs=output_crs,
+    cdef GDALWarpAppOptions *warp_app_options = create_warp_app_options(output_crs=output_crs,
                                                warp_memory_limit=warp_memory_limit,
-                                               multi=multi,
+                                               multi_mode=multi_mode,
                                                multi_threads=multi_threads,
-                                               cutline_fn=cutline_fn,
+                                               cutline_filename=cutline_filename,
                                                cutline_layer=cutline_layer,
                                                crop_to_cutline=crop_to_cutline,
                                                input_format=input_format,
                                                output_format=output_format,
                                                overwrite=overwrite,
-                                               write_flush=write_flush,
+                                               flush_to_disk=flush_to_disk,
                                                configuration_options=configuration_options,
-                                               target_extent=target_extent,
+                                               target_extent_bbox=target_extent_bbox,
                                                target_extent_crs=target_extent_crs,
                                                overview_level=overview_level,
-                                               src_nodata=src_nodata,
-                                               dst_nodata=dst_nodata,
+                                               source_nodata=source_nodata,
+                                               output_nodata=dest_nodata,
                                                set_source_color_interp=set_source_color_interp,
-                                               resample_algo=resample_algo)
+                                               resample_algorithm=resample_algorithm)
 
-    dst_ds_bytes = dst_ds.encode('utf-8')
-    cdef char *dst_ds_ptr = dst_ds_bytes
-    with nogil:
-        dst_hds = GDALWarp(dst_ds_ptr, NULL, src_count, src_ds_ptr_list, warp_app_options, &pbUsageError)
+    dest_dataset = GDALWarp(dest_filename.encode('utf-8'), NULL, <int>1, &source_dataset, warp_app_options, &progressbar_usage_error)
     try:
-        return dst_hds
+        exc_wrap_pointer(dest_dataset)
     finally:
-        GDALClose(dst_hds)
-        GDALClose(src_ds_ptr_list[0])
-        CPLFree(src_ds_ptr_list)
+        GDALClose(dest_dataset)
+        GDALClose(source_dataset)
         GDALWarpAppOptionsFree(warp_app_options)
-        GDALDestroyDriverManager()
 
-def warp(src_ds,
-         dst_ds,
-         output_crs=None,
-         warp_memory_limit=None,
-         multi=None,
-         multi_threads=os.cpu_count(),
-         cutline_fn=None,
-         cutline_layer=None,
-         crop_to_cutline=None,
-         input_format=None,
-         output_format=None,
-         overwrite=None,
-         src_nodata=None,
-         dst_nodata=None,
-         set_source_color_interp=None,
-         resample_algo='bilinear',
-         write_flush=False,
-         configuration_options=None,
-         target_extent=None,
-         target_extent_crs=None,
-         overview_level='NONE'):
-    _warp(src_ds,
-          dst_ds,
-          output_crs,
-          warp_memory_limit,
-          multi,
-          multi_threads,
-          cutline_fn,
-          cutline_layer,
-          crop_to_cutline,
-          input_format,
-          output_format,
-          overwrite,
-          src_nodata,
-          dst_nodata,
-          set_source_color_interp,
-          resample_algo,
-          write_flush,
-          configuration_options,
-          target_extent,
-          target_extent_crs,
-          overview_level)
+        GDALDestroyDriverManager()
+        return dest_filename
