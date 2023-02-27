@@ -343,7 +343,7 @@ cdef extern from "gdal.h" nogil:
     int GDALGetRasterBandYSize(GDALRasterBandH hband)
     const char *GDALGetRasterUnitType(GDALRasterBandH hband)
     CPLErr GDALSetRasterUnitType(GDALRasterBandH hband, const char *val)
-    CPLErr GDALComputeRasterMinMax(GDALRasterBandH hBand, int bApproxOK, double adfMinMax[2])
+    CPLErr GDALComputeRasterMinMax(GDALRasterBandH hBand, int bApproxOK, double[2] adfMinMax)
     int GDALSetGeoTransform(GDALDatasetH hds, double *transform)
     int GDALSetProjection(GDALDatasetH hds, const char *wkt)
     void GDALGetBlockSize(GDALRasterBandH , int *xsize, int *ysize)
