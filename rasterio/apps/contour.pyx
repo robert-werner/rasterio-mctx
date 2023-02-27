@@ -35,7 +35,6 @@ cdef CSLConstList create_contour_generate_options(elev_interval=10.0,
         v = str(nodata).encode('utf-8')
         contour_generate_options = CSLAddNameValue(contour_generate_options, <const char *> k, <const char *> v)
     if idx_elev_field:
-        print(idx_elev_field)
         k = 'ELEV_FIELD'.encode('utf-8')
         v = str(idx_elev_field).encode('utf-8')
         contour_generate_options = CSLAddNameValue(contour_generate_options, <const char *> k, <const char *> v)
@@ -59,55 +58,48 @@ cdef void create_elev_attrib(const char *pszElevAttrib, OGRLayerH vector_layer):
     cdef OGRErr eErr = OGR_L_CreateField(vector_layer, vector_layer_field, 0)
     OGR_Fld_Destroy(vector_layer_field)
 
-cpdef build_contour(source_raster_filename, output_vector_filename,
-                    source_band=1,
+cpdef build_contour(source_raster_filename,
+                    output_vector_filename,
+                    raster_band_number=1,
                     elevation_interval=10.0,
                     elevation_base=0,
                     elevation_exp_base=0,
                     fixed_levels=None,
                     nodata=None,
-                    id_field=None,
                     elevation_field='ELEV',
                     polygonize=False,
                     vector_driver_name='GPKG'):
     GDALAllRegister()
     OGRRegisterAll()
 
-    cdef GDALDatasetH source_raster_dataset = exc_wrap_pointer(GDALOpen(source_raster_filename, GA_ReadOnly))
+    cdef OGRLayerH vector_layer
+
+    cdef GDALDatasetH source_raster_dataset = exc_wrap_pointer(GDALOpen(source_raster_filename.encode('utf-8'), GA_ReadOnly))
     cdef OGRSpatialReferenceH source_srs = GDALGetSpatialRef(source_raster_dataset)
 
-    cdef GDALRasterBandH dem_band = GDALGetRasterBand(source_raster_dataset, <int>source_band)
+    cdef GDALRasterBandH dem_band = GDALGetRasterBand(source_raster_dataset, <int>raster_band_number)
 
-    cdef OGRSFDriverH vector_driver = OGRGetDriverByName(vector_driver_name)
+    cdef OGRSFDriverH vector_driver = OGRGetDriverByName(vector_driver_name.encode('utf-8'))
 
-    cdef OGRLayerH vector_layer = NULL
-
-    cdef char* isolines_layername_ptr = 'ISOLINES'
-
-    cdef char* elev_attrib_name = elevation_field
-
-    cdef char* output_vector_ds_name = output_vector_filename
-
-    cdef OGRDataSourceH vector_ds = OGR_Dr_CreateDataSource(vector_driver, output_vector_ds_name, NULL)
+    cdef OGRDataSourceH vector_ds = OGR_Dr_CreateDataSource(vector_driver, output_vector_filename.encode('utf-8'), NULL)
 
     if polygonize is True:
-        vector_layer = OGR_DS_CreateLayer(vector_ds, isolines_layername_ptr, source_srs, wkbMultiPolygon, NULL)
-    elif polygonize is False:
-        vector_layer = OGR_DS_CreateLayer(vector_ds, isolines_layername_ptr, source_srs, wkbLineString, NULL)
+        vector_layer = OGR_DS_CreateLayer(vector_ds, 'ISOLINES'.encode('utf-8'), source_srs, wkbMultiPolygon, NULL)
+    else:
+        vector_layer = OGR_DS_CreateLayer(vector_ds, 'ISOLINES'.encode('utf-8'), source_srs, wkbLineString, NULL)
 
-    cdef OGRFieldDefnH hFld = OGR_Fld_Create("ID", OFTInteger)
+    cdef OGRFieldDefnH hFld = OGR_Fld_Create("ID".encode('utf-8'), OFTInteger)
     OGR_Fld_SetWidth(hFld, 8)
     OGR_L_CreateField(vector_layer, hFld, <int> 0)
     OGR_Fld_Destroy(hFld)
 
-    cdef int idx_id_field = <int> -1
-    cdef int idx_elev_field = <int> -1
+    cdef int idx_id_field = <int> 0
+    cdef int idx_elev_field = <int> 1
 
     if elevation_field is not None:
-        create_elev_attrib(elev_attrib_name, vector_layer)
-        idx_id_field = OGR_FD_GetFieldIndex(OGR_L_GetLayerDefn(vector_layer), "ID")
-        idx_elev_field = OGR_FD_GetFieldIndex(OGR_L_GetLayerDefn(vector_layer), elev_attrib_name)
-        print(idx_id_field, idx_elev_field)
+        create_elev_attrib(elevation_field.encode('utf-8'), vector_layer)
+        idx_id_field = OGR_FD_GetFieldIndex(OGR_L_GetLayerDefn(vector_layer), "ID".encode('utf-8'))
+        idx_elev_field = OGR_FD_GetFieldIndex(OGR_L_GetLayerDefn(vector_layer), elevation_field.encode('utf-8'))
 
 
     cdef CSLConstList contour_generate_options = create_contour_generate_options(elevation_interval, elevation_base,
@@ -117,7 +109,6 @@ cpdef build_contour(source_raster_filename, output_vector_filename,
     exc_wrap_int(GDALContourGenerateEx(dem_band, vector_layer, contour_generate_options, NULL, NULL))
 
     GDALClose(source_raster_dataset)
-    GDALClose(vector_layer)
     CSLDestroy(contour_generate_options)
     GDALDestroyDriverManager()
     OGRCleanupAll()
