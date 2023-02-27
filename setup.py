@@ -222,9 +222,6 @@ if os.environ.get('CYTHON_COVERAGE'):
 
 log.debug('ext_options:\n%s', pprint.pformat(ext_options))
 
-fopenmp_ext_options = copy.deepcopy(ext_options)
-fopenmp_ext_options['extra_link_args'].append('-fopenmp')
-fopenmp_ext_options['extra_compile_args'].append('-fopenmp')
 
 ext_modules = None
 if "clean" not in sys.argv:
@@ -274,7 +271,7 @@ if "clean" not in sys.argv:
             Extension(
                 'rasterio._filepath', ['rasterio/_filepath.pyx'], **cpp_ext_options))
     ext_modules = cythonize(
-        extensions, quiet=True, compile_time_env=compile_time_env, **cythonize_options)
+        extensions, quiet=False, compile_time_env=compile_time_env, nthreads=os.cpu_count(), **cythonize_options)
 
 
 with open("README.rst", encoding="utf-8") as f:

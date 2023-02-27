@@ -53,7 +53,7 @@ cdef GDALBuildVRTOptions* create_build_vrt_options(files_as_bands=None,
         if isinstance(dest_nodata, list) or isinstance(dest_nodata, tuple):
             vrt_options_list += ['-vrtnodata', f'{" ".join([str(nodata) for nodata in dest_nodata])}']
 
-    str_joined_options = " ".join(vrt_options_list)
+    str_joined_options = " ".join(vrt_options_list).encode('utf-8')
     cdef char** c_vrt_options_list = CSLParseCommandLine(str_joined_options)
 
     cdef GDALBuildVRTOptions* build_vrt_options = NULL
@@ -91,11 +91,11 @@ cpdef build_vrt(source_filenames,
     )
 
     for source_filename_idx in range(len(source_filenames)):
-        source_datasets[<int>source_filename_idx] = exc_wrap_pointer(GDALOpen(source_filenames[source_filename_idx], GA_ReadOnly))
+        source_datasets[<int>source_filename_idx] = exc_wrap_pointer(GDALOpen(source_filenames[source_filename_idx].encode('utf-8'), GA_ReadOnly))
 
     cdef int progressbar_usage_error
 
-    dest_dataset = GDALBuildVRT(dest_filename, len(source_filenames), source_datasets, NULL, build_vrt_options, &progressbar_usage_error)
+    dest_dataset = GDALBuildVRT(dest_filename.encode('utf-8'), len(source_filenames), source_datasets, NULL, build_vrt_options, &progressbar_usage_error)
 
     try:
         exc_wrap_pointer(dest_dataset)
