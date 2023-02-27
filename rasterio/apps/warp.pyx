@@ -129,13 +129,11 @@ cpdef warp(source_filename,
                                                set_source_color_interp=set_source_color_interp,
                                                resample_algorithm=resample_algorithm)
 
-    dest_dataset = GDALWarp(dest_filename.encode('utf-8'), NULL, <int>1, &source_dataset, warp_app_options, &progressbar_usage_error)
-    try:
-        exc_wrap_pointer(dest_dataset)
-    finally:
-        GDALClose(dest_dataset)
-        GDALClose(source_dataset)
-        GDALWarpAppOptionsFree(warp_app_options)
+    dest_dataset = exc_wrap_pointer(GDALWarp(dest_filename.encode('utf-8'), NULL, <int>1, &source_dataset, warp_app_options, &progressbar_usage_error))
 
-        GDALDestroyDriverManager()
-        return dest_filename
+    GDALClose(dest_dataset)
+    GDALClose(source_dataset)
+    GDALWarpAppOptionsFree(warp_app_options)
+
+    GDALDestroyDriverManager()
+    return dest_filename

@@ -95,16 +95,13 @@ cpdef build_vrt(source_filenames,
 
     cdef int progressbar_usage_error
 
-    dest_dataset = GDALBuildVRT(dest_filename.encode('utf-8'), len(source_filenames), source_datasets, NULL, build_vrt_options, &progressbar_usage_error)
+    dest_dataset = exc_wrap_pointer(GDALBuildVRT(dest_filename.encode('utf-8'), len(source_filenames), source_datasets, NULL, build_vrt_options, &progressbar_usage_error))
 
-    try:
-        exc_wrap_pointer(dest_dataset)
-    finally:
-        for source_filename_idx in range(len(source_filenames)):
-            GDALClose(source_datasets[<int> source_filename_idx])
-        GDALBuildVRTOptionsFree(build_vrt_options)
-        GDALClose(dest_dataset)
+    for source_filename_idx in range(len(source_filenames)):
+        GDALClose(source_datasets[<int> source_filename_idx])
+    GDALBuildVRTOptionsFree(build_vrt_options)
+    GDALClose(dest_dataset)
 
-        GDALDestroyDriverManager()
-        return dest_filename
+    GDALDestroyDriverManager()
+    return dest_filename
 

@@ -74,13 +74,11 @@ cpdef translate(source_filename,
 
     cdef int pbUsageError = <int> 0
 
-    dest_dataset = GDALTranslate(dest_filename.encode('utf-8'), source_dataset, gdal_translate_options, &pbUsageError)
-    try:
-        exc_wrap_pointer(dest_dataset)
-    finally:
-        GDALClose(dest_dataset)
-        GDALClose(source_dataset)
-        GDALTranslateOptionsFree(gdal_translate_options)
-        GDALDestroyDriverManager()
+    dest_dataset = exc_wrap_pointer(GDALTranslate(dest_filename.encode('utf-8'), source_dataset, gdal_translate_options, &pbUsageError))
 
-        return dest_filename
+    GDALClose(dest_dataset)
+    GDALClose(source_dataset)
+    GDALTranslateOptionsFree(gdal_translate_options)
+    GDALDestroyDriverManager()
+
+    return dest_filename

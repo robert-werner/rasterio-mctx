@@ -114,15 +114,14 @@ cpdef build_contour(source_raster_filename, output_vector_filename,
                                                                elevation_exp_base, fixed_levels,
                                                                nodata, idx_id_field, idx_elev_field, polygonize)
 
+    exc_wrap_int(GDALContourGenerateEx(dem_band, vector_layer, contour_generate_options, NULL, NULL))
 
-    try:
-        exc_wrap_int(GDALContourGenerateEx(dem_band, vector_layer, contour_generate_options, NULL, NULL))
-    finally:
-        GDALClose(source_raster_dataset)
-        GDALClose(vector_layer)
-        CSLDestroy(contour_generate_options)
-        GDALDestroyDriverManager()
-        OGRCleanupAll()
+    GDALClose(source_raster_dataset)
+    GDALClose(vector_layer)
+    CSLDestroy(contour_generate_options)
+    GDALDestroyDriverManager()
+    OGRCleanupAll()
 
-        return output_vector_filename
+    return output_vector_filename
+
 
