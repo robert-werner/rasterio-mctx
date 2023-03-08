@@ -262,6 +262,9 @@ if "clean" not in sys.argv:
         ),
         Extension(
             'rasterio.cutils.min_max', ['rasterio/cutils/min_max.pyx'], **ext_options
+        ),
+        Extension(
+            'rasterio.cutils.bounds', ['rasterio/cutils/bounds.pyx'], **ext_options
         )
 
     ]
