@@ -13,7 +13,7 @@ cpdef min_max(source_filename):
 
 
     try:
-        exc_wrap_int(GDALComputeRasterMinMax(source_raster_band, <int> 0, min_max_arr))
+        exc_wrap_int(GDALComputeRasterMinMax(source_raster_band, <int> 1, min_max_arr))
     finally:
         GDALClose(source_dataset)
         GDALDestroyDriverManager()
