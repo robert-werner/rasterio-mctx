@@ -104,7 +104,8 @@ cpdef warp(source_filename,
                         configuration_options=None,
                         target_extent_bbox=None,
                         target_extent_crs=None,
-                        overview_level='NONE'):
+                        overview_level='NONE',
+                        source_extra=None):
 
     GDALAllRegister()
 
@@ -130,7 +131,8 @@ cpdef warp(source_filename,
                                                source_nodata=source_nodata,
                                                output_nodata=dest_nodata,
                                                set_source_color_interp=set_source_color_interp,
-                                               resample_algorithm=resample_algorithm)
+                                               resample_algorithm=resample_algorithm,
+                                               source_extra=source_extra)
 
     dest_dataset = exc_wrap_pointer(GDALWarp(dest_filename.encode('utf-8'), NULL, <int>1, &source_dataset, warp_app_options, &progressbar_usage_error))
 
