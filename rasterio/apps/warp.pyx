@@ -32,7 +32,8 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
                                                  configuration_options=None,
                                                  target_extent_bbox=None,
                                                  target_extent_crs=None,
-                                                 overview_level='NONE'):
+                                                 overview_level='NONE',
+                                                 source_extra=None):
     warp_app_options_list = []
     if overview_level:
         warp_app_options_list += ['-ovr', str(overview_level)]
@@ -50,6 +51,8 @@ cdef GDALWarpAppOptions* create_warp_app_options(output_crs=None,
         warp_app_options_list += ['-wm', str(warp_memory_limit)]
     if flush_to_disk:
         warp_app_options_list += ['-wo', 'WRITE_FLUSH=YES']
+    if source_extra:
+        warp_app_options_list += ['-wo', f'SOURCE_EXTRA={source_extra}']
     if multi_mode:
         warp_app_options_list += ['-multi']
         if multi_threads:
